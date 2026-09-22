@@ -75,6 +75,12 @@
   .topbar .date { font-size: 13px; color: var(--ink-soft); }
 
   main { flex: 1; padding: 0 16px 110px; overflow-x: hidden; }
+
+  .date-nav { display: flex; align-items: center; justify-content: center; gap: 18px; padding: 2px 16px 14px; }
+  .date-nav button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--ink-soft); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  .date-nav button svg { width: 17px; height: 17px; }
+  .date-nav button:disabled { opacity: .35; }
+  .date-nav span { font-size: 14px; font-weight: 600; min-width: 120px; text-align: center; }
   .view { display: none; animation: fade .18s ease; }
   .view.active { display: block; }
   @keyframes fade { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform:none;} }
@@ -116,7 +122,9 @@
   .empty-hint { color: var(--ink-soft); font-size: 13.5px; padding: 4px 2px 2px; }
 
   /* ---- Log ---- */
-  .log-group-title { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin: 18px 2px 8px; text-transform: capitalize; }
+  .log-group-title { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin: 18px 2px 8px; text-transform: capitalize; display: flex; justify-content: space-between; }
+  .log-group-total { font-weight: 600; color: var(--ink); }
+  .log-day-total { display: flex; justify-content: space-between; font-size: 14.5px; font-weight: 700; margin: 18px 2px 4px; padding-top: 12px; border-top: 1.5px solid var(--line); }
   .log-item { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--line); }
   .log-item:last-child { border-bottom: none; }
   .log-item .li-main { flex: 1; min-width: 0; }
@@ -155,8 +163,30 @@
   .tab { background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--ink-soft); font-size: 10.5px; flex: 1; cursor: pointer; padding: 4px 0; }
   .tab svg { width: 22px; height: 22px; }
   .tab.active { color: var(--green-600); }
-  .tab-fab { flex: none; width: 54px; height: 54px; border-radius: 50%; background: var(--green-600); border: none; display: flex; align-items: center; justify-content: center; margin-top: -26px; box-shadow: 0 6px 16px rgba(46,125,91,.35); cursor: pointer; }
-  .tab-fab svg { width: 25px; height: 25px; stroke: #fff; }
+  .fab-float { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(82px + env(safe-area-inset-bottom, 0px)); width: 56px; height: 56px; border-radius: 50%; background: var(--green-600); border: none; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(46,125,91,.4); cursor: pointer; z-index: 30; }
+  .fab-float svg { width: 26px; height: 26px; stroke: #fff; }
+  .fab-float:active { background: var(--green-700); }
+
+  /* ---- recipes ---- */
+  .recipe-search { width: 100%; padding: 12px 14px; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--card); color: var(--ink); font-size: 15px; margin-bottom: 14px; }
+  .recipe-chips { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; }
+  .recipe-chip { flex: none; padding: 7px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); font-size: 12.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; white-space: nowrap; }
+  .recipe-chip.sel { background: var(--green-600); color: #fff; border-color: var(--green-600); }
+  .recipe-card { padding: 16px; }
+  .recipe-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; cursor: pointer; }
+  .recipe-name { font-size: 15.5px; font-weight: 700; }
+  .recipe-serving { font-size: 12px; color: var(--ink-soft); margin-top: 2px; }
+  .recipe-macros { display: flex; gap: 6px; flex: none; }
+  .recipe-macro-pill { font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 999px; background: var(--green-50); color: var(--green-600); white-space: nowrap; }
+  .recipe-body { max-height: 0; overflow: hidden; transition: max-height .25s ease; }
+  .recipe-body.open { max-height: 600px; }
+  .recipe-body-inner { padding-top: 14px; }
+  .recipe-sub { font-size: 12.5px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .03em; margin: 12px 0 6px; }
+  .recipe-sub:first-child { margin-top: 0; }
+  .recipe-ing-list { font-size: 13.5px; line-height: 1.9; color: var(--ink); }
+  .recipe-steps-list { font-size: 13.5px; line-height: 1.65; padding-left: 18px; margin: 0; }
+  .recipe-steps-list li { margin-bottom: 6px; }
+  .recipe-log-btn { width: 100%; margin-top: 14px; }
 
   /* ---- Modal / sheet ---- */
   .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: flex-end; z-index: 40; }
@@ -297,6 +327,16 @@
     </div>
   </div>
 
+  <div class="date-nav" id="dateNav">
+    <button id="dateBack" aria-label="Previous day">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+    </button>
+    <span id="dateLabel">Today</span>
+    <button id="dateFwd" aria-label="Next day">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+    </button>
+  </div>
+
   <main>
 
     <!-- HOME -->
@@ -333,14 +373,22 @@
         </div>
       </div>
 
-      <div class="section-title">Today's meals</div>
+      <div class="section-title" id="mealsSectionTitle">Today's meals</div>
       <div class="card" id="mealsCard" style="padding: 6px 14px;"></div>
     </section>
 
     <!-- LOG -->
     <section class="view" id="view-log">
-      <div class="section-title" style="margin-top:20px;">Today's log</div>
+      <div class="section-title" style="margin-top:20px;" id="logSectionTitle">Today's log</div>
       <div class="card" id="logCard" style="padding: 6px 14px;"></div>
+    </section>
+
+    <!-- RECIPES -->
+    <section class="view" id="view-recipes">
+      <div class="section-title" style="margin-top:20px;">Cooking guides</div>
+      <input class="recipe-search" id="recipeSearch" placeholder="Search recipes…">
+      <div class="recipe-chips" id="recipeChips"></div>
+      <div id="recipeList"></div>
     </section>
 
     <!-- REPORTS -->
@@ -415,8 +463,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
       Log
     </button>
-    <button class="tab-fab" id="fabAdd" aria-label="Add food">
-      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+    <button class="tab" data-view="recipes">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v18M6 3c3 0 3 3 6 3s3-3 6-3M12 6v6M18 3v18"/></svg>
+      Recipes
     </button>
     <button class="tab" data-view="reports">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>
@@ -427,6 +476,10 @@
       Profile
     </button>
   </nav>
+
+  <button class="fab-float" id="fabAdd" aria-label="Add food">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+  </button>
 
   <div class="toast" id="toast"></div>
 
@@ -647,9 +700,52 @@
     {n:"Ramen", c:436, p:18, cb:65, f:14, g:400, s:"1 bowl"},
     {n:"Shakshuka", c:120, p:7, cb:7, f:7, g:250, s:"1 bowl"},
     {n:"Greek salad", c:75, p:2, cb:4, f:6, g:200, s:"1 bowl"},
+
+    // ---- protein-rich Indian staples (bhurji, dals, sprouts) ----
+    {n:"Paneer bhurji", a:["paneer bhurjee"], c:220, p:14, cb:6, f:16, g:150, s:"1 bowl"},
+    {n:"Egg bhurji", a:["anda bhurji","egg bhurjee"], c:170, p:12, cb:3, f:12, g:150, s:"2 eggs worth"},
+    {n:"Chicken bhurji", c:190, p:20, cb:3, f:11, g:150, s:"1 bowl"},
+    {n:"Soya chunks curry", a:["soya bean curry","meal maker curry"], c:130, p:14, cb:9, f:5, g:200, s:"1 bowl"},
+    {n:"Moong dal chilla", a:["moong dal cheela"], c:180, p:11, cb:24, f:5, g:80, s:"1 chilla"},
+    {n:"Besan chilla", a:["besan cheela"], c:190, p:9, cb:22, f:8, g:80, s:"1 chilla"},
+    {n:"Sprouts salad", a:["moong sprouts salad","sprouts chaat"], c:55, p:4, cb:8, f:0.5, g:150, s:"1 bowl"},
+    {n:"Masala omelette", c:180, p:13, cb:3, f:13, g:120, s:"2 eggs"},
+    {n:"Sabudana khichdi", c:180, p:2.5, cb:28, f:7, g:200, s:"1 bowl"},
+    {n:"Gobi manchurian", c:180, p:4, cb:20, f:9, g:150, s:"1 plate"},
+    {n:"Chilli paneer", c:220, p:12, cb:12, f:14, g:150, s:"1 plate"},
+    {n:"Hakka noodles", c:150, p:4, cb:24, f:4.5, g:200, s:"1 plate"},
+    {n:"Bhel puri", c:150, p:3.5, cb:25, f:4, g:100, s:"1 plate"},
+    {n:"Sev puri", c:200, p:4, cb:26, f:9, g:100, s:"1 plate"},
+    {n:"Aloo tikki", c:200, p:3.5, cb:26, f:9, g:60, s:"2 tikki"},
+    {n:"Kachori", c:380, p:7, cb:42, f:20, g:40, s:"1 piece"},
+    {n:"Roasted chana", a:["bhuna chana"], c:360, p:20, cb:58, f:5, g:30, s:"1 small handful"},
+    {n:"Roasted makhana", a:["fox nuts"], c:350, p:9.7, cb:76, f:0.5, g:30, s:"1 cup"},
+    {n:"Rajma chawal", c:145, p:5.5, cb:22, f:3.5, g:350, s:"1 plate"},
+    {n:"Dal chawal", c:120, p:4.5, cb:20, f:2.5, g:350, s:"1 plate"},
+    {n:"Chole chawal", c:150, p:6, cb:24, f:4, g:350, s:"1 plate"},
+    {n:"Chana chaat", c:140, p:7, cb:20, f:3, g:150, s:"1 bowl"},
+    {n:"Sprouted moong salad", a:["sprouts salad"], c:105, p:8, cb:16, f:1, g:150, s:"1 bowl"},
+    {n:"Masoor dal", a:["red lentil dal"], c:105, p:7, cb:17, f:1.3, g:200, s:"1 bowl"},
+    {n:"Toor dal", a:["arhar dal"], c:110, p:6.5, cb:15, f:2.5, g:200, s:"1 bowl"},
+    {n:"Paneer paratha", c:270, p:8, cb:32, f:12, g:100, s:"1 piece"},
+    {n:"Grilled chicken breast", a:["grilled chicken"], c:165, p:31, cb:0, f:3.6, g:172, s:"1 breast"},
+    {n:"Egg white omelette", a:["egg white omelet"], c:70, p:11, cb:1, f:2.2, g:120, s:"3 egg whites"},
+    {n:"Sprouts chaat", c:120, p:8, cb:17, f:2.5, g:150, s:"1 bowl"},
+    {n:"Chicken salad, grilled", a:["grilled chicken salad"], c:120, p:14, cb:5, f:5, g:200, s:"1 bowl"},
   ];
   const UNIT_LABELS = {native:"", g:"grams (g)", oz:"ounces (oz)", bowl_small:"Small bowl", bowl_medium:"Medium bowl", bowl_large:"Large bowl", plate_small:"Small plate", plate_large:"Large plate"};
   const UNIT_GRAMS = {g:1, oz:28.3495, bowl_small:250, bowl_medium:400, bowl_large:600, plate_small:300, plate_large:500};
+  // Dictionary serving labels already read as full phrases ("1 cup", "2 pieces", "1 medium roti").
+  // Strip the leading count so we can safely prefix our own quantity without duplicating it.
+  function bareUnitLabel(label){
+    if (!label) return 'serving';
+    const m = label.match(/^\s*[\d/.]+(?:-[\d/.]+)?\s+(.+)$/);
+    return (m && m[1]) ? m[1] : label;
+  }
+  function pluralizeUnit(word, qty){
+    if (qty === 1) return word;
+    return /s$/i.test(word) ? word : word + 's';
+  }
   function gramsFor(qty, unit, nativeUnitGrams){
     if (unit === 'native') return qty * (nativeUnitGrams || 100);
     return qty * (UNIT_GRAMS[unit] || 1);
@@ -673,15 +769,138 @@
     return scored.slice(0,6).map(s=>s.item);
   }
 
+  // ---------- recipes (protein-forward, mostly Indian) ----------
+  const RECIPES = [
+    { name:"Paneer Bhurji", tags:["veg","high-protein"], calories:330, protein:21, carbs:9, fat:24, servingLabel:"1 bowl (150g)",
+      ingredients:["Paneer, crumbled — 200g","Onion, chopped — 1","Tomato, chopped — 1","Green chili — 1","Turmeric — 1/4 tsp","Cumin seeds — 1/2 tsp","Oil — 1 tbsp","Coriander leaves"],
+      steps:["Heat oil, crackle the cumin seeds.","Sauté onion until translucent, then add tomato, turmeric and green chili — cook until soft.","Add crumbled paneer, mix gently and cook 3–4 minutes.","Garnish with coriander and serve hot with roti."] },
+    { name:"Egg Bhurji", tags:["non-veg","high-protein"], calories:255, protein:18, carbs:4.5, fat:18, servingLabel:"1 bowl (3 eggs)",
+      ingredients:["Eggs — 3","Onion, chopped — 1","Tomato, chopped — 1","Green chili — 1","Turmeric — 1/4 tsp","Oil — 1 tbsp","Coriander leaves"],
+      steps:["Heat oil, sauté onion until soft, then add tomato, turmeric and chili.","Whisk the eggs and pour in, scrambling continuously over medium heat.","Cook until just set — don't overcook.","Garnish with coriander, serve with toast or paratha."] },
+    { name:"Tandoori Chicken", tags:["non-veg","high-protein"], calories:300, protein:50, carbs:4, fat:10, servingLabel:"2 pieces (200g)",
+      ingredients:["Chicken pieces — 500g","Yogurt — 1/2 cup","Ginger-garlic paste — 1 tbsp","Tandoori masala — 2 tbsp","Lemon juice","Oil or ghee"],
+      steps:["Marinate chicken in yogurt, spices, ginger-garlic and lemon for at least 2 hours (overnight is best).","Grill or bake at 220°C (425°F) for 25–30 minutes, basting with oil halfway through.","Char under a broiler for 2–3 minutes for the classic edges.","Serve with onion rings and lemon wedges."] },
+    { name:"Chicken Tikka", tags:["non-veg","high-protein"], calories:270, protein:39, carbs:4.5, fat:10.5, servingLabel:"6 pieces (150g)",
+      ingredients:["Boneless chicken chunks — 400g","Yogurt — 1/2 cup","Tikka masala — 2 tbsp","Ginger-garlic paste","Lemon juice","Skewers"],
+      steps:["Marinate chicken chunks in yogurt, tikka masala, ginger-garlic and lemon for 30+ minutes.","Thread onto skewers.","Grill or pan-sear, turning occasionally, until charred and cooked through (12–15 min).","Serve with mint chutney."] },
+    { name:"Palak Paneer", tags:["veg","high-protein"], calories:300, protein:14, carbs:12, fat:22, servingLabel:"1 bowl (200g)",
+      ingredients:["Spinach — 300g","Paneer, cubed — 200g","Onion — 1","Tomato — 1","Garlic — 3 cloves","Garam masala — 1 tsp","Cream (optional) — 1 tbsp"],
+      steps:["Blanch the spinach briefly, then blend into a smooth purée.","Sauté onion, garlic and tomato, add garam masala.","Stir in the spinach purée and simmer 5 minutes.","Add paneer cubes, cook 5 more minutes, and finish with a swirl of cream."] },
+    { name:"Dal Tadka", tags:["veg","high-protein"], calories:220, protein:12, carbs:28, fat:7, servingLabel:"1 bowl (200g)",
+      ingredients:["Toor or moong dal — 1 cup","Turmeric — 1/2 tsp","Ghee — 1 tbsp","Cumin seeds — 1/2 tsp","Garlic — 2 cloves","Dried red chili — 1","Tomato, chopped — 1"],
+      steps:["Pressure-cook the dal with turmeric and water until soft.","Separately, heat ghee and crackle cumin, garlic and red chili.","Add tomato and cook briefly, then pour this tadka over the cooked dal.","Simmer 5 minutes and garnish with coriander."] },
+    { name:"Rajma", tags:["veg","high-protein"], calories:280, protein:14, carbs:36, fat:10, servingLabel:"1 bowl (200g)",
+      ingredients:["Kidney beans, soaked & boiled — 2 cups","Onion — 1","Tomato purée — 1 cup","Ginger-garlic paste — 1 tbsp","Rajma masala — 2 tsp"],
+      steps:["Sauté onion and ginger-garlic until golden.","Add tomato purée and spices, cook until oil separates.","Add the boiled rajma with a little water and simmer 20 minutes.","Mash a few beans against the pot to thicken the gravy."] },
+    { name:"Chana Masala", tags:["veg","high-protein"], calories:328, protein:14, carbs:40, fat:12, servingLabel:"1 bowl (200g)",
+      ingredients:["Chickpeas, boiled — 2 cups","Onion — 1","Tomato — 2","Ginger-garlic paste","Chana masala powder — 2 tsp","Amchur or lemon juice"],
+      steps:["Build an onion-tomato masala base with the spices.","Add the boiled chickpeas and a splash of water, simmer 15 minutes.","Finish with amchur or a squeeze of lemon for tang."] },
+    { name:"Moong Dal Chilla", tags:["veg","high-protein"], calories:144, protein:8.8, carbs:19, fat:4, servingLabel:"1 chilla (80g)",
+      ingredients:["Yellow moong dal, soaked — 1 cup","Ginger — 1 tsp","Green chili — 1","Cumin — 1/2 tsp","Oil for cooking"],
+      steps:["Blend the soaked dal with ginger and chili into a smooth, pourable batter.","Season with cumin and salt.","Pour a ladleful onto a hot, lightly oiled tawa and spread thin like a crepe.","Cook both sides until golden; serve with chutney."] },
+    { name:"Besan Chilla", tags:["veg","high-protein"], calories:152, protein:7.2, carbs:17.6, fat:6.4, servingLabel:"1 chilla (80g)",
+      ingredients:["Besan (gram flour) — 1 cup","Water","Onion, finely chopped","Tomato, finely chopped","Green chili","Ajwain — 1/4 tsp"],
+      steps:["Whisk besan with water into a smooth, lump-free batter.","Stir in chopped vegetables, ajwain and salt.","Pour onto a hot tawa, spread thin, and cook both sides until golden."] },
+    { name:"Soya Chunks Curry", tags:["veg","high-protein"], calories:260, protein:28, carbs:18, fat:10, servingLabel:"1 bowl (200g)",
+      ingredients:["Soya chunks — 1 cup (dry)","Onion — 1","Tomato — 1","Ginger-garlic paste","Garam masala — 1 tsp"],
+      steps:["Soak soya chunks in hot water 10 minutes, then squeeze out excess water.","Prepare an onion-tomato masala with the spices.","Add the soya chunks and simmer 10 minutes so they soak up the gravy."] },
+    { name:"Paneer Tikka", tags:["veg","high-protein"], calories:420, protein:27, carbs:9, fat:30, servingLabel:"6 pieces (150g)",
+      ingredients:["Paneer, cubed — 250g","Yogurt — 1/2 cup","Tikka masala — 2 tbsp","Bell pepper & onion, chunked","Skewers"],
+      steps:["Marinate paneer and vegetables in spiced yogurt for 30 minutes.","Thread onto skewers, alternating paneer and vegetables.","Grill or pan-sear until lightly charred on all sides."] },
+    { name:"Egg Curry", tags:["non-veg","high-protein"], calories:300, protein:18, carbs:10, fat:20, servingLabel:"2 eggs (200g)",
+      ingredients:["Eggs, boiled — 4","Onion — 1","Tomato — 1","Ginger-garlic paste","Egg curry masala — 2 tsp"],
+      steps:["Prepare an onion-tomato masala base with the spices.","Slit the boiled eggs lightly and add to the gravy.","Simmer 8–10 minutes so the eggs absorb the flavor."] },
+    { name:"Masala Omelette", tags:["non-veg","high-protein"], calories:216, protein:15.6, carbs:3.6, fat:15.6, servingLabel:"2-3 eggs (120g)",
+      ingredients:["Eggs — 2-3","Onion, finely chopped","Tomato, finely chopped","Green chili","Coriander leaves","Oil"],
+      steps:["Whisk eggs with chopped vegetables, chili and salt.","Pour onto a hot, lightly oiled pan.","Cook until the base sets, flip, and cook the other side briefly."] },
+    { name:"Sprouts Salad", tags:["veg","high-protein"], calories:82, protein:6, carbs:12, fat:0.8, servingLabel:"1 bowl (150g)",
+      ingredients:["Moong sprouts — 1.5 cups","Onion, chopped","Tomato, chopped","Cucumber, chopped","Lemon juice","Chaat masala"],
+      steps:["Toss the sprouts with all the chopped vegetables.","Season with lemon juice and chaat masala.","Mix well and serve fresh — no cooking needed."] },
+    { name:"Grilled Chicken Breast", tags:["non-veg","high-protein"], calories:284, protein:53, carbs:0, fat:6.2, servingLabel:"1 breast (172g)",
+      ingredients:["Chicken breast — 1","Olive oil — 1 tsp","Garlic, minced","Lemon juice","Mixed herbs"],
+      steps:["Marinate the chicken briefly in oil, garlic, lemon and herbs.","Grill or pan-sear about 6–7 minutes per side, until internal temp reaches 74°C (165°F).","Rest 5 minutes before slicing."] },
+  ];
+  let recipeFilterTag = 'all';
+  let recipeOpenIndex = null;
+
+  function renderRecipes(){
+    const chipsEl = document.getElementById('recipeChips');
+    const chips = [['all','All'],['high-protein','High protein'],['veg','Vegetarian'],['non-veg','Non-veg']];
+    chipsEl.innerHTML = chips.map(([tag,label])=>`<div class="recipe-chip ${recipeFilterTag===tag?'sel':''}" data-tag="${tag}">${label}</div>`).join('');
+    chipsEl.querySelectorAll('.recipe-chip').forEach(c=>{
+      c.addEventListener('click', ()=>{ recipeFilterTag = c.dataset.tag; renderRecipeList(); renderRecipes(); });
+    });
+    renderRecipeList();
+  }
+
+  function renderRecipeList(){
+    const q = (document.getElementById('recipeSearch').value || '').trim().toLowerCase();
+    const listEl = document.getElementById('recipeList');
+    const filtered = RECIPES.filter(r=>{
+      const matchesTag = recipeFilterTag==='all' || r.tags.includes(recipeFilterTag);
+      const matchesQ = !q || r.name.toLowerCase().includes(q);
+      return matchesTag && matchesQ;
+    });
+    if (!filtered.length) { listEl.innerHTML = `<p class="empty-hint">No recipes match — try a different search or filter.</p>`; return; }
+    listEl.innerHTML = filtered.map((r)=>{
+      const idx = RECIPES.indexOf(r);
+      const open = recipeOpenIndex === idx;
+      return `
+      <div class="card recipe-card">
+        <div class="recipe-top" data-toggle="${idx}">
+          <div>
+            <div class="recipe-name">${esc(r.name)}</div>
+            <div class="recipe-serving">${esc(r.servingLabel)}</div>
+          </div>
+          <div class="recipe-macros">
+            <span class="recipe-macro-pill">${r0(r.calories)} cal</span>
+            <span class="recipe-macro-pill">${round(r.protein)}g P</span>
+          </div>
+        </div>
+        <div class="recipe-body ${open?'open':''}" id="recipeBody${idx}">
+          <div class="recipe-body-inner">
+            <div class="recipe-sub">Ingredients</div>
+            <div class="recipe-ing-list">${r.ingredients.map(i=>esc(i)).join('<br>')}</div>
+            <div class="recipe-sub">Method</div>
+            <ol class="recipe-steps-list">${r.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+            <button class="btn btn-primary recipe-log-btn" data-log="${idx}">Log this — ${r0(r.calories)} cal</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    listEl.querySelectorAll('[data-toggle]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const idx = Number(el.dataset.toggle);
+        recipeOpenIndex = recipeOpenIndex === idx ? null : idx;
+        renderRecipeList();
+      });
+    });
+    listEl.querySelectorAll('[data-log]').forEach(el=>{
+      el.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const r = RECIPES[Number(el.dataset.log)];
+        selectedMeal = defaultMealForNow();
+        confirmAdd({ name: r.name, amountLabel: r.servingLabel, calories: r.calories, protein: r.protein, carbs: r.carbs, fat: r.fat });
+      });
+    });
+  }
+
+  function bindRecipes(){
+    document.getElementById('recipeSearch').addEventListener('input', renderRecipeList);
+    renderRecipes();
+  }
+
   // ---------- capabilities ----------
   let db = null, sample = null, imagesOk = false;
 
   // ---------- state ----------
   let profile = { calorieGoal: 2200, proteinGoal: 150, carbGoal: 275, fatGoal: 85 };
-  let entries = []; // today's entries {id, meal, name, calories, protein, carbs, fat, loggedAt}
-  let allEntriesCache = []; // for reports (last ~50)
+  let entries = []; // selected day's entries {id, meal, name, calories, protein, carbs, fat, loggedAt}
+  let allEntriesCache = []; // for reports (last ~300, all dates)
   let customFoods = []; // user-added foods {id, n, c, p, cb, f, g, s} merged into autocomplete
   let currentView = 'home';
+  let selectedDate = todayStr(); // the day Home/Log/Add-food currently operate on
+  let unsubEntries = null; // db listener for selectedDate's entries, re-created when the date changes
   let localMode = false; // true if db unavailable -> use localStorage
 
   // ---------- local fallback storage ----------
@@ -721,8 +940,10 @@
     setGreeting();
     document.getElementById('dateText').textContent = new Date().toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'});
     bindNav();
+    bindDateNav();
     bindAddFood();
     bindProfile();
+    bindRecipes();
     renderAll();
   }
 
@@ -741,17 +962,8 @@
 
   // ============ DB / entries ============
   function subscribeEntries(){
-    const today = todayStr();
-    try {
-      db.collection('entries').where('date','==',today).orderBy('loggedAt','asc').onSnapshot(
-        (qs)=>{
-          entries = qs.docs.map(d=>Object.assign({id:d.id}, d.data()));
-          renderHome(); renderLog();
-        },
-        (err)=>{ console.warn('entries sub error', err); }
-      );
-    } catch(e){ console.warn(e); }
-    // last 7 days for reports (best-effort, no compound index needed: fetch a bounded recent window)
+    subscribeEntriesForSelectedDate();
+    // last ~300 across all dates for reports (best-effort, no compound index needed)
     try {
       db.collection('entries').orderBy('loggedAt','desc').limit(300).onSnapshot(
         (qs)=>{ allEntriesCache = qs.docs.map(d=>Object.assign({id:d.id}, d.data())); renderReports(); },
@@ -760,9 +972,21 @@
     } catch(e){}
   }
 
+  function subscribeEntriesForSelectedDate(){
+    if (unsubEntries) { try { unsubEntries(); } catch(e){} unsubEntries = null; }
+    try {
+      unsubEntries = db.collection('entries').where('date','==',selectedDate).orderBy('loggedAt','asc').onSnapshot(
+        (qs)=>{
+          entries = qs.docs.map(d=>Object.assign({id:d.id}, d.data()));
+          renderHome(); renderLog();
+        },
+        (err)=>{ console.warn('entries sub error', err); }
+      );
+    } catch(e){ console.warn(e); }
+  }
+
   function refreshTodayFromCache(){
-    const today = todayStr();
-    entries = allEntriesCache.filter(e=>e.date===today).sort((a,b)=>(a.loggedAt||'').localeCompare(b.loggedAt||''));
+    entries = allEntriesCache.filter(e=>e.date===selectedDate).sort((a,b)=>(a.loggedAt||'').localeCompare(b.loggedAt||''));
   }
 
   // ============ DB / custom foods (user's own "any dish" library) ============
@@ -799,7 +1023,7 @@
   }
 
   async function addEntryToLog(entry){
-    entry.date = todayStr();
+    entry.date = selectedDate;
     entry.loggedAt = new Date().toISOString();
     if (localMode) {
       entry.id = 'e'+Date.now()+Math.random().toString(36).slice(2,7);
@@ -858,7 +1082,36 @@
     document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
     document.getElementById('view-'+v).classList.add('active');
     document.querySelectorAll('.tab[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+    document.getElementById('dateNav').style.display = (v==='home' || v==='log') ? 'flex' : 'none';
     window.scrollTo(0,0);
+  }
+
+  // ============ DATE NAVIGATION (view or log a past day) ============
+  function isSelectedToday(){ return selectedDate === todayStr(); }
+  function dateLabelFor(d){
+    if (d === todayStr()) return 'Today';
+    if (d === dateStrDaysAgo(1)) return 'Yesterday';
+    const dt = new Date(d+'T00:00:00');
+    return dt.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'});
+  }
+  function shiftSelectedDate(deltaDays){
+    const dt = new Date(selectedDate+'T00:00:00');
+    dt.setDate(dt.getDate()+deltaDays);
+    const next = todayStr(dt);
+    if (next > todayStr()) return; // no logging into the future
+    selectedDate = next;
+    onSelectedDateChanged();
+  }
+  function onSelectedDateChanged(){
+    document.getElementById('dateLabel').textContent = dateLabelFor(selectedDate);
+    document.getElementById('dateFwd').disabled = isSelectedToday();
+    if (localMode) { refreshTodayFromCache(); renderHome(); renderLog(); }
+    else { subscribeEntriesForSelectedDate(); }
+  }
+  function bindDateNav(){
+    document.getElementById('dateBack').addEventListener('click', ()=> shiftSelectedDate(-1));
+    document.getElementById('dateFwd').addEventListener('click', ()=> shiftSelectedDate(1));
+    onSelectedDateChanged();
   }
 
   // ============ RENDER ============
@@ -894,6 +1147,8 @@
     document.getElementById('mealsCard').innerHTML = meals.map(m=>`
       <div class="meal-row"><span class="m-name">${m}</span><span class="m-cal">${byMeal[m] ? r0(byMeal[m])+' cal' : '—'}</span></div>
     `).join('');
+    const mst = document.getElementById('mealsSectionTitle');
+    if (mst) mst.textContent = isSelectedToday() ? "Today's meals" : `${dateLabelFor(selectedDate)}'s meals`;
   }
   function setMacro(key, val, goal){
     const el = document.getElementById(key+'Val');
@@ -903,14 +1158,19 @@
   }
 
   function renderLog(){
+    const lst = document.getElementById('logSectionTitle');
+    if (lst) lst.textContent = isSelectedToday() ? "Today's log" : `${dateLabelFor(selectedDate)}'s log`;
     const el = document.getElementById('logCard');
-    if (!entries.length) { el.innerHTML = `<p class="empty-hint">Nothing logged yet today. Tap + to snap your first meal.</p>`; return; }
+    if (!entries.length) { el.innerHTML = `<p class="empty-hint">Nothing logged for ${isSelectedToday() ? 'today' : dateLabelFor(selectedDate).toLowerCase()} yet. Tap + to add your first meal.</p>`; return; }
     const meals = ['Breakfast','Lunch','Dinner','Snack'];
     let html = '';
+    let dayTotal = 0;
     meals.forEach(m=>{
       const items = entries.filter(e=>e.meal===m);
       if (!items.length) return;
-      html += `<div class="log-group-title">${m}</div>`;
+      const mealTotal = items.reduce((s,e)=>s+(Number(e.calories)||0),0);
+      dayTotal += mealTotal;
+      html += `<div class="log-group-title"><span>${m}</span><span class="log-group-total">${r0(mealTotal)} cal</span></div>`;
       items.forEach(e=>{
         html += `<div class="log-item">
           <div class="li-main">
@@ -922,6 +1182,7 @@
         </div>`;
       });
     });
+    html += `<div class="log-day-total"><span>Total</span><span>${r0(dayTotal)} cal</span></div>`;
     el.innerHTML = html;
     el.querySelectorAll('[data-del]').forEach(btn=>{
       btn.addEventListener('click', ()=> deleteEntry(btn.dataset.del));
@@ -1357,7 +1618,7 @@ Rules:
       document.getElementById('resFat').textContent = round(current.fat)+'g';
     });
     document.getElementById('foodAdd').addEventListener('click', ()=>{
-      const unitLabel = quState.unit === 'native' ? `${quState.qty} ${r.unit}${quState.qty!==1?'s':''}` : `${quState.qty} ${UNIT_LABELS[quState.unit]}`;
+      const unitLabel = quState.unit === 'native' ? `${quState.qty} ${pluralizeUnit(r.unit, quState.qty)}` : `${quState.qty} ${UNIT_LABELS[quState.unit]}`;
       confirmAdd({
         name: r.name, amountLabel: unitLabel,
         calories: round(current.cal), protein: round(current.protein), carbs: round(current.carbs), fat: round(current.fat),
@@ -1365,7 +1626,7 @@ Rules:
     });
     document.getElementById('foodEdit').addEventListener('click', ()=> renderManualEntry({
       name: r.name, calories: r0(current.cal), protein: round(current.protein), carbs: round(current.carbs), fat: round(current.fat),
-      amountLabel: quState.unit === 'native' ? `${quState.qty} ${r.unit}${quState.qty!==1?'s':''}` : `${quState.qty} ${UNIT_LABELS[quState.unit]}`
+      amountLabel: quState.unit === 'native' ? `${quState.qty} ${pluralizeUnit(r.unit, quState.qty)}` : `${quState.qty} ${UNIT_LABELS[quState.unit]}`
     }));
   }
 
@@ -1559,7 +1820,8 @@ If "${query}" is not a recognizable food, reply {"name":null}. Numbers only, no 
   function applyQaMatch(match){
     qaMatch = match;
     const bodyEl = document.getElementById('qaBody');
-    const basis = { cal100:match.cal100, protein100:match.protein100, carbs100:match.carbs100, fat100:match.fat100, nativeUnitGrams:match.nativeUnitGrams, nativeUnitLabel:match.nativeUnitLabel };
+    const cleanUnit = bareUnitLabel(match.nativeUnitLabel);
+    const basis = { cal100:match.cal100, protein100:match.protein100, carbs100:match.carbs100, fat100:match.fat100, nativeUnitGrams:match.nativeUnitGrams, nativeUnitLabel:cleanUnit };
     const quState = { qty:1, unit:'native' };
     bodyEl.innerHTML = `
       <div class="match-tag">
@@ -1587,7 +1849,7 @@ If "${query}" is not a recognizable food, reply {"name":null}. Numbers only, no 
     });
     document.getElementById('qaOverride').addEventListener('click', ()=> renderQaFallbackFields());
     document.getElementById('qaAdd').addEventListener('click', ()=>{
-      const unitLabel = quState.unit === 'native' ? `${quState.qty} ${match.nativeUnitLabel}` : `${quState.qty} ${UNIT_LABELS[quState.unit]}`;
+      const unitLabel = quState.unit === 'native' ? `${quState.qty} ${pluralizeUnit(cleanUnit, quState.qty)}` : `${quState.qty} ${UNIT_LABELS[quState.unit]}`;
       confirmAdd({ name: match.name, amountLabel: unitLabel, calories: round(qaCurrent.cal), protein: round(qaCurrent.protein), carbs: round(qaCurrent.carbs), fat: round(qaCurrent.fat) });
     });
   }
