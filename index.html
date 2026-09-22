@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calorivo</title>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.20.0/umd/index.min.js"></script>
+<style>
+  :root {
+    --green-50: #eef6f0;
+    --green-600: #2E7D5B;
+    --green-700: #22613F;
+    --green-100: #d9ede1;
+    --ink: #1C1C1E;
+    --ink-soft: #6B6F6B;
+    --bg: #FAFAF7;
+    --card: #FFFFFF;
+    --line: #E9E7E0;
+    --protein: #3B6FA0;
+    --carbs: #D98E3B;
+    --fat: #B5563C;
+    --danger: #C0392B;
+    --radius-lg: 22px;
+    --radius-md: 14px;
+    --radius-sm: 10px;
+    --shadow: 0 1px 2px rgba(28,28,30,0.04), 0 6px 18px rgba(28,28,30,0.06);
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --green-50: #16241c;
+      --green-600: #4CAF83;
+      --green-700: #5FC298;
+      --green-100: #1c2e23;
+      --ink: #F2F2F0;
+      --ink-soft: #9A9E98;
+      --bg: #121310;
+      --card: #1B1C19;
+      --line: #2A2C27;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 18px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --green-50: #16241c;
+    --green-600: #4CAF83;
+    --green-700: #5FC298;
+    --green-100: #1c2e23;
+    --ink: #F2F2F0;
+    --ink-soft: #9A9E98;
+    --bg: #121310;
+    --card: #1B1C19;
+    --line: #2A2C27;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 18px rgba(0,0,0,0.35);
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: none;
+  }
+  #app { max-width: 480px; margin: 0 auto; min-height: 100%; position: relative; display: flex; flex-direction: column; }
+
+  .topbar {
+    padding: calc(18px + env(safe-area-inset-top, 0px)) 20px 10px;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .topbar .greet { font-size: 15px; color: var(--ink-soft); }
+  .topbar .date { font-size: 13px; color: var(--ink-soft); }
+
+  main { flex: 1; padding: 0 16px 110px; overflow-x: hidden; }
+  .view { display: none; animation: fade .18s ease; }
+  .view.active { display: block; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px);} to {opacity:1; transform:none;} }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    margin-bottom: 14px;
+  }
+
+  /* ---- Home: ring ---- */
+  .ring-card { display: flex; align-items: center; gap: 18px; }
+  .ring-wrap { position: relative; width: 132px; height: 132px; flex: none; }
+  .ring-wrap svg { width: 132px; height: 132px; transform: rotate(-90deg); }
+  .ring-track { fill: none; stroke: var(--line); stroke-width: 11; }
+  .ring-val { fill: none; stroke: var(--green-600); stroke-width: 11; stroke-linecap: round; transition: stroke-dasharray .5s ease; }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-num { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; line-height: 1; }
+  .ring-label { font-size: 11.5px; color: var(--ink-soft); margin-top: 4px; text-align: center; line-height: 1.3; }
+  .ring-side { flex: 1; display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; color: var(--ink-soft); }
+  .ring-side b { color: var(--ink); font-weight: 600; }
+  .ring-side .row { display: flex; justify-content: space-between; }
+
+  .macro-row { display: flex; gap: 10px; margin-bottom: 14px; }
+  .macro-chip { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 12px 14px; box-shadow: var(--shadow); }
+  .macro-chip .m-top { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 8px; }
+  .macro-chip .m-val { font-weight: 700; font-size: 15px; color: var(--ink); }
+  .bar-track { height: 6px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .bar-val { height: 100%; border-radius: 4px; transition: width .5s ease; }
+
+  .section-title { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin: 22px 2px 10px; }
+  .meal-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 2px; border-bottom: 1px solid var(--line); }
+  .meal-row:last-child { border-bottom: none; }
+  .meal-row .m-name { font-size: 15px; font-weight: 500; }
+  .meal-row .m-cal { font-size: 14px; color: var(--ink-soft); }
+  .empty-hint { color: var(--ink-soft); font-size: 13.5px; padding: 4px 2px 2px; }
+
+  /* ---- Log ---- */
+  .log-group-title { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin: 18px 2px 8px; text-transform: capitalize; }
+  .log-item { display: flex; align-items: center; gap: 12px; padding: 12px 4px; border-bottom: 1px solid var(--line); }
+  .log-item:last-child { border-bottom: none; }
+  .log-item .li-main { flex: 1; min-width: 0; }
+  .li-name { font-size: 14.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .li-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+  .li-cal { font-size: 14.5px; font-weight: 600; white-space: nowrap; }
+  .li-del { width: 26px; height: 26px; border-radius: 50%; border: none; background: var(--line); color: var(--ink-soft); font-size: 15px; line-height: 1; cursor: pointer; flex: none; display:flex; align-items:center; justify-content:center; }
+  .li-del:active { background: var(--danger); color: #fff; }
+
+  /* ---- Profile ---- */
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 6px; }
+  .field input, .field select { width: 100%; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-size: 15px; }
+  .field input:focus, .field select:focus { outline: 2px solid var(--green-600); outline-offset: 1px; }
+
+  /* ---- Buttons ---- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 18px; border-radius: 999px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; }
+  .btn-primary { background: var(--green-600); color: #fff; }
+  .btn-primary:active { background: var(--green-700); }
+  .btn-ghost { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+  .btn-ghost:active { background: var(--green-50); }
+  .btn-text { background: none; border: none; color: var(--green-600); font-weight: 600; font-size: 14.5px; cursor: pointer; padding: 8px; }
+  .btn:disabled { opacity: .5; }
+  .btn-row { display: flex; gap: 10px; }
+
+  /* ---- Bottom nav ---- */
+  nav.tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    max-width: 480px; margin: 0 auto;
+    background: color-mix(in srgb, var(--card) 92%, transparent);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line);
+    padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .tab { background: none; border: none; display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--ink-soft); font-size: 10.5px; flex: 1; cursor: pointer; padding: 4px 0; }
+  .tab svg { width: 22px; height: 22px; }
+  .tab.active { color: var(--green-600); }
+  .tab-fab { flex: none; width: 54px; height: 54px; border-radius: 50%; background: var(--green-600); border: none; display: flex; align-items: center; justify-content: center; margin-top: -26px; box-shadow: 0 6px 16px rgba(46,125,91,.35); cursor: pointer; }
+  .tab-fab svg { width: 25px; height: 25px; stroke: #fff; }
+
+  /* ---- Modal / sheet ---- */
+  .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: none; align-items: flex-end; z-index: 40; }
+  .sheet-backdrop.open { display: flex; }
+  .sheet { background: var(--bg); width: 100%; max-width: 480px; margin: 0 auto; border-radius: 24px 24px 0 0; max-height: 92vh; overflow-y: auto; padding: 10px 20px calc(24px + env(safe-area-inset-bottom, 0px)); animation: up .22s ease; }
+  @keyframes up { from { transform: translateY(30px); opacity:.6;} to { transform:none; opacity:1;} }
+  .sheet-handle { width: 36px; height: 4px; background: var(--line); border-radius: 3px; margin: 8px auto 14px; }
+  .sheet-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .sheet-sub { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 18px; }
+
+  .snap-options { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+  .snap-opt { display: flex; align-items: center; gap: 14px; padding: 15px 16px; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--card); cursor: pointer; text-align: left; }
+  .snap-opt svg { width: 22px; height: 22px; stroke: var(--green-600); flex: none; }
+  .snap-opt .so-title { font-weight: 600; font-size: 14.5px; }
+  .snap-opt .so-sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+
+  .preview-img { width: 100%; max-height: 240px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 16px; background: var(--line); }
+  .analyzing { display: flex; flex-direction: column; align-items: center; padding: 30px 0 10px; gap: 14px; }
+  .spinner { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--green-600); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .analyzing p { font-size: 14px; color: var(--ink-soft); }
+
+  .result-head { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  .result-badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--green-600); background: var(--green-50); padding: 4px 9px; border-radius: 999px; }
+  .result-name { font-size: 20px; font-weight: 700; margin: 10px 0 2px; }
+  .result-amount { font-size: 14px; color: var(--ink-soft); margin-bottom: 16px; }
+  .estimate-note { font-size: 12px; color: var(--ink-soft); margin: -8px 0 14px; }
+
+  .nutri-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .nutri-cell { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px; text-align: center; }
+  .nutri-cell .n-val { font-weight: 700; font-size: 15.5px; }
+  .nutri-cell .n-label { font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+  .big-cal { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; }
+  .big-cal-wrap { text-align: center; margin: 4px 0 18px; }
+  .big-cal-label { font-size: 12.5px; color: var(--ink-soft); }
+
+  .stepper { display: flex; align-items: center; gap: 14px; justify-content: center; margin-bottom: 16px; }
+  .stepper button { width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); font-size: 18px; cursor: pointer; }
+  .stepper .qty-val { font-size: 17px; font-weight: 700; min-width: 90px; text-align: center; }
+
+  .meal-select { display: flex; gap: 8px; margin-bottom: 18px; }
+  .meal-pill { flex: 1; padding: 10px 4px; text-align: center; border-radius: 999px; border: 1px solid var(--line); background: var(--card); font-size: 12.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer; }
+  .meal-pill.sel { background: var(--green-600); color: #fff; border-color: var(--green-600); }
+
+  .confidence-banner { display: flex; align-items: flex-start; gap: 10px; background: var(--green-50); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 16px; font-size: 13.5px; }
+  .confidence-banner.low { background: #fbeceb; }
+  .confidence-banner svg { width: 17px; height: 17px; stroke: var(--green-600); flex: none; margin-top: 1px; }
+  .confidence-banner.low svg { stroke: var(--danger); }
+
+  .manual-form .field { margin-bottom: 12px; }
+
+  .toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom,0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-size: 13.5px; z-index: 60; opacity: 0; pointer-events: none; transition: opacity .25s ease, transform .25s ease; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+  .bars7 { display: flex; align-items: flex-end; gap: 8px; height: 130px; margin: 8px 0 6px; }
+  .bar7-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 6px; }
+  .bar7-fill { width: 60%; border-radius: 6px 6px 3px 3px; background: var(--green-600); min-height: 3px; transition: height .5s ease; }
+  .bar7-day { font-size: 10.5px; color: var(--ink-soft); }
+  .stat-row { display: flex; justify-content: space-between; padding: 10px 2px; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-row span:last-child { font-weight: 700; }
+
+  .privacy-note { font-size: 12px; color: var(--ink-soft); line-height: 1.5; padding: 2px 2px 10px; }
+  .link-danger { color: var(--danger); font-size: 13.5px; background: none; border: none; padding: 10px 2px; cursor: pointer; font-weight: 600; }
+  input[type="file"] { display: none; }
+
+  /* ---- Logo ---- */
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .brand-mark { width: 34px; height: 34px; flex: none; }
+  .brand-word { font-size: 17px; font-weight: 700; letter-spacing: 0.2px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; }
+  .topbar-right { text-align: right; }
+
+  /* ---- autocomplete ---- */
+  .autocomplete-wrap { position: relative; }
+  .ac-list { position: absolute; left: 0; right: 0; top: calc(100% + 4px); background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow); z-index: 5; max-height: 220px; overflow-y: auto; display: none; }
+  .ac-list.open { display: block; }
+  .ac-item { padding: 11px 14px; font-size: 14px; cursor: pointer; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 10px; }
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:active { background: var(--green-50); }
+  .ac-item .ac-sub { color: var(--ink-soft); font-size: 12px; flex: none; }
+  .ac-loading { padding: 10px 14px; font-size: 12.5px; color: var(--ink-soft); }
+  .match-tag { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--green-600); background: var(--green-50); padding: 4px 9px; border-radius: 999px; margin: 2px 0 14px; }
+
+  /* ---- quantity/unit control ---- */
+  .qu-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .qu-row input[type=number] { width: 78px; padding: 11px 10px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-size: 15px; text-align: center; }
+  .qu-row select { flex: 1; padding: 11px 10px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-size: 14px; }
+  .grams-note { text-align: center; font-size: 12px; color: var(--ink-soft); margin: -10px 0 16px; }
+
+  /* ---- barcode scanner ---- */
+  .scan-frame { position: relative; width: 100%; aspect-ratio: 4/3; border-radius: var(--radius-md); overflow: hidden; background: #000; margin-bottom: 14px; }
+  .scan-frame video { width: 100%; height: 100%; object-fit: cover; }
+  .scan-reticle { position: absolute; left: 10%; right: 10%; top: 38%; bottom: 38%; border: 2.5px solid #fff; border-radius: 10px; box-shadow: 0 0 0 999px rgba(0,0,0,.28); }
+  .scan-status { text-align: center; font-size: 13px; color: var(--ink-soft); margin-bottom: 14px; }
+  .or-divider { display: flex; align-items: center; gap: 10px; color: var(--ink-soft); font-size: 12px; margin: 4px 0 14px; }
+  .or-divider::before, .or-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+  .barcode-manual-row { display: flex; gap: 8px; }
+  .barcode-manual-row input { flex: 1; padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--line); background: var(--bg); color: var(--ink); font-size: 15px; }
+  .ai-guess-note { display: flex; gap: 9px; background: var(--green-50); border-radius: var(--radius-sm); padding: 11px 13px; font-size: 12.5px; margin-bottom: 16px; line-height: 1.45; }
+  .ai-guess-note svg { width: 16px; height: 16px; stroke: var(--green-600); flex: none; margin-top: 1px; }
+
+  /* ---- BMI / target calculator ---- */
+  .bmi-summary { display: flex; align-items: baseline; gap: 8px; margin: 16px 0 4px; }
+  .bmi-summary .bmi-num { font-size: 26px; font-weight: 800; }
+  .bmi-summary .bmi-cat { font-size: 13px; color: var(--ink-soft); }
+  .bmi-tdee-note { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 14px; }
+  .goal-opt { display: flex; align-items: center; justify-content: space-between; padding: 13px 15px; border-radius: var(--radius-md); border: 1px solid var(--line); background: var(--bg); cursor: pointer; margin-bottom: 8px; }
+  .goal-opt:active { background: var(--green-50); border-color: var(--green-600); }
+  .goal-opt .go-name { font-size: 14px; font-weight: 600; }
+  .goal-opt .go-sub { font-size: 12px; color: var(--ink-soft); margin-top: 1px; }
+  .goal-opt .go-cal { font-size: 15.5px; font-weight: 700; color: var(--green-600); }
+
+  /* ---- food library ---- */
+  .lib-item { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px solid var(--line); }
+  .lib-item:last-child { border-bottom: none; }
+  .lib-item .li-main { flex: 1; min-width: 0; }
+  .lib-empty { color: var(--ink-soft); font-size: 13.5px; padding: 4px 2px 12px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="topbar" id="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+        <rect width="40" height="40" rx="11" fill="var(--green-600)"/>
+        <rect x="10.5" y="14.5" width="19" height="14" rx="3.4" fill="none" stroke="#fff" stroke-width="2.1"/>
+        <path d="M15.2 14.5l1.1-1.9a1.8 1.8 0 0 1 1.55-.9h4.3a1.8 1.8 0 0 1 1.55.9l1.1 1.9" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="20" cy="21.6" r="4.3" fill="none" stroke="#fff" stroke-width="2.1"/>
+        <path d="M24 12.2c.3-2.1 2.2-3.6 4.3-3.4-.6 2-2.3 3.4-4.3 3.4Z" fill="#fff" opacity=".92"/>
+      </svg>
+      <div class="brand-word">Calorivo</div>
+    </div>
+    <div class="topbar-right">
+      <div class="greet" id="greetText">Good morning</div>
+      <div class="date" id="dateText"></div>
+    </div>
+  </div>
+
+  <main>
+
+    <!-- HOME -->
+    <section class="view active" id="view-home">
+      <div class="card ring-card">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 132 132">
+            <circle class="ring-track" cx="66" cy="66" r="56"></circle>
+            <circle class="ring-val" id="ringVal" cx="66" cy="66" r="56" stroke-dasharray="0 352"></circle>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-num" id="calsRemaining">0</div>
+            <div class="ring-label">calories<br>remaining</div>
+          </div>
+        </div>
+        <div class="ring-side">
+          <div class="row"><span>Consumed</span><b id="calsConsumed">0</b></div>
+          <div class="row"><span>Goal</span><b id="calsGoal">2000</b></div>
+        </div>
+      </div>
+
+      <div class="macro-row">
+        <div class="macro-chip">
+          <div class="m-top"><span>Protein</span><span class="m-val" id="proteinVal">0/0g</span></div>
+          <div class="bar-track"><div class="bar-val" id="proteinBar" style="width:0%; background:var(--protein);"></div></div>
+        </div>
+        <div class="macro-chip">
+          <div class="m-top"><span>Carbs</span><span class="m-val" id="carbsVal">0/0g</span></div>
+          <div class="bar-track"><div class="bar-val" id="carbsBar" style="width:0%; background:var(--carbs);"></div></div>
+        </div>
+        <div class="macro-chip">
+          <div class="m-top"><span>Fat</span><span class="m-val" id="fatVal">0/0g</span></div>
+          <div class="bar-track"><div class="bar-val" id="fatBar" style="width:0%; background:var(--fat);"></div></div>
+        </div>
+      </div>
+
+      <div class="section-title">Today's meals</div>
+      <div class="card" id="mealsCard" style="padding: 6px 14px;"></div>
+    </section>
+
+    <!-- LOG -->
+    <section class="view" id="view-log">
+      <div class="section-title" style="margin-top:20px;">Today's log</div>
+      <div class="card" id="logCard" style="padding: 6px 14px;"></div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="view" id="view-reports">
+      <div class="section-title" style="margin-top:20px;">Last 7 days</div>
+      <div class="card">
+        <div class="bars7" id="bars7"></div>
+      </div>
+      <div class="card" id="reportStats"></div>
+    </section>
+
+    <!-- PROFILE -->
+    <section class="view" id="view-profile">
+      <div class="section-title" style="margin-top:20px;">Calculate your target</div>
+      <div class="card">
+        <p class="sheet-sub" style="margin-bottom:16px;">Optional — get a suggested calorie goal based on your body and activity, using standard estimation formulas.</p>
+        <div class="field"><label>Age</label><input type="number" id="bmiAge" inputmode="numeric" placeholder="e.g. 30"></div>
+        <div class="field"><label>Sex (used for the calorie estimate)</label>
+          <select id="bmiSex"><option value="female">Female</option><option value="male">Male</option></select>
+        </div>
+        <div class="field"><label>Units</label>
+          <select id="bmiUnits"><option value="metric">Metric — kg, cm</option><option value="imperial">Imperial — lb, in</option></select>
+        </div>
+        <div class="qu-row" style="margin-bottom:14px;">
+          <input type="number" id="bmiHeight" placeholder="Height" style="flex:1; width:auto; text-align:left;">
+          <input type="number" id="bmiWeight" placeholder="Weight" style="flex:1; width:auto; text-align:left;">
+        </div>
+        <div class="field"><label>Activity level</label>
+          <select id="bmiActivity">
+            <option value="1.2">Sedentary (little or no exercise)</option>
+            <option value="1.375">Light (exercise 1-3 days/week)</option>
+            <option value="1.55" selected>Moderate (exercise 3-5 days/week)</option>
+            <option value="1.725">Active (exercise 6-7 days/week)</option>
+            <option value="1.9">Very active (hard daily exercise)</option>
+          </select>
+        </div>
+        <button class="btn btn-ghost" id="bmiCalcBtn">Calculate</button>
+        <div id="bmiResult"></div>
+      </div>
+
+      <div class="section-title">Daily goals</div>
+      <div class="card">
+        <div class="field"><label>Calories (kcal)</label><input type="number" id="goalCalories" inputmode="numeric"></div>
+        <div class="field"><label>Protein (g)</label><input type="number" id="goalProtein" inputmode="numeric"></div>
+        <div class="field"><label>Carbohydrates (g)</label><input type="number" id="goalCarbs" inputmode="numeric"></div>
+        <div class="field"><label>Fat (g)</label><input type="number" id="goalFat" inputmode="numeric"></div>
+        <button class="btn btn-primary" id="saveGoalsBtn">Save goals</button>
+      </div>
+
+      <div class="section-title">My food library</div>
+      <div class="card">
+        <p class="sheet-sub" style="margin-bottom:12px;">Any dish you add here — from anywhere in the world — shows up in autocomplete next time you log food.</p>
+        <div id="libraryList"></div>
+        <button class="btn btn-ghost" id="addLibraryFoodBtn" style="margin-top:6px;">+ Add a food to your library</button>
+      </div>
+
+      <div class="section-title">About your data</div>
+      <div class="card">
+        <p class="privacy-note">Photos you take are sent to Claude to identify food and read nutrition labels, then discarded — Calorivo doesn't store the images themselves, only the nutrition results you confirm. Calorie and BMI figures here are estimates, not medical advice.</p>
+        <button class="link-danger" id="clearDataBtn">Clear all logged data</button>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="tabbar">
+    <button class="tab active" data-view="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>
+      Home
+    </button>
+    <button class="tab" data-view="log">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      Log
+    </button>
+    <button class="tab-fab" id="fabAdd" aria-label="Add food">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+    <button class="tab" data-view="reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>
+      Reports
+    </button>
+    <button class="tab" data-view="profile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+      Profile
+    </button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Add Food sheet -->
+  <div class="sheet-backdrop" id="addSheetBackdrop">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div id="addSheetBody"></div>
+    </div>
+  </div>
+
+</div>
+
+<input type="file" id="fileCamera" accept="image/*" capture="environment">
+<input type="file" id="fileLibrary" accept="image/*">
+
+<script>
+(function(){
+
+  // ---------- utils ----------
+  function todayStr(d){ d = d || new Date(); const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), da=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${da}`; }
+  function dateStrDaysAgo(n){ const d = new Date(); d.setDate(d.getDate()-n); return todayStr(d); }
+  function round(n){ return Math.round(n*10)/10; }
+  function r0(n){ return Math.round(n); }
+  function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'), 2200); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ---------- common foods dictionary (per 100g basis) ----------
+  // n=name, a=aliases, c/p/cb/f=calories/protein/carbs/fat per 100g, g=typical serving grams, s=serving label
+  const FOOD_DICT = [
+    {n:"Boiled egg", a:["hard boiled egg","hard-boiled egg"], c:155, p:13, cb:1.1, f:11, g:50, s:"1 large egg"},
+    {n:"Fried egg", c:196, p:13.6, cb:0.8, f:15, g:50, s:"1 large egg"},
+    {n:"Scrambled eggs", c:149, p:10, cb:1.6, f:11, g:110, s:"2 eggs"},
+    {n:"Chicken breast, cooked", a:["chicken breast","grilled chicken breast"], c:165, p:31, cb:0, f:3.6, g:172, s:"1 breast"},
+    {n:"Chicken thigh, cooked", a:["chicken thigh"], c:209, p:26, cb:0, f:10.9, g:116, s:"1 thigh"},
+    {n:"Ground beef, cooked (85/15)", a:["ground beef","hamburger meat"], c:250, p:26, cb:0, f:17, g:85, s:"3 oz"},
+    {n:"Turkey breast, cooked", a:["turkey"], c:135, p:30, cb:0, f:1, g:85, s:"3 oz"},
+    {n:"Salmon, cooked", a:["salmon"], c:206, p:22, cb:0, f:13, g:154, s:"1 fillet"},
+    {n:"Tuna, canned in water", a:["tuna"], c:116, p:26, cb:0, f:0.8, g:85, s:"3 oz"},
+    {n:"Shrimp, cooked", a:["shrimp"], c:99, p:24, cb:0.2, f:0.3, g:85, s:"3 oz"},
+    {n:"Bacon", c:541, p:37, cb:1.4, f:42, g:8, s:"1 slice"},
+    {n:"Sausage link", c:301, p:12, cb:2, f:27, g:65, s:"1 link"},
+    {n:"Tofu, firm", a:["tofu"], c:144, p:15.5, cb:2.8, f:8.7, g:126, s:"1/2 cup"},
+    {n:"Steak, grilled", a:["steak"], c:271, p:25, cb:0, f:19, g:227, s:"1 steak (8oz)"},
+    {n:"Pork chop, cooked", a:["pork chop"], c:231, p:25, cb:0, f:14, g:145, s:"1 chop"},
+    {n:"Deli turkey slice", a:["turkey slice"], c:104, p:17, cb:3.3, f:1.7, g:56, s:"2 slices"},
+    {n:"Ham slice", c:145, p:18, cb:1.5, f:7, g:56, s:"2 slices"},
+    {n:"White rice, cooked", a:["rice"], c:130, p:2.7, cb:28, f:0.3, g:158, s:"1 cup"},
+    {n:"Brown rice, cooked", c:123, p:2.7, cb:26, f:1, g:195, s:"1 cup"},
+    {n:"Pasta, cooked", a:["spaghetti","noodles"], c:158, p:5.8, cb:31, f:0.9, g:140, s:"1 cup"},
+    {n:"Quinoa, cooked", c:120, p:4.4, cb:21, f:1.9, g:185, s:"1 cup"},
+    {n:"Oatmeal, cooked", a:["oats"], c:71, p:2.5, cb:12, f:1.5, g:234, s:"1 cup"},
+    {n:"Bread, whole wheat", a:["bread slice","toast"], c:247, p:13, cb:41, f:3.4, g:28, s:"1 slice"},
+    {n:"Bread, white", c:265, p:9, cb:49, f:3.2, g:28, s:"1 slice"},
+    {n:"Bagel", c:257, p:10, cb:50, f:1.5, g:98, s:"1 bagel"},
+    {n:"Tortilla, flour", a:["tortilla"], c:312, p:8, cb:51, f:8, g:49, s:"1 tortilla"},
+    {n:"Baked potato", a:["potato"], c:93, p:2.5, cb:21, f:0.1, g:173, s:"1 medium"},
+    {n:"Sweet potato, baked", a:["sweet potato"], c:90, p:2, cb:21, f:0.1, g:130, s:"1 medium"},
+    {n:"French fries", c:312, p:3.4, cb:41, f:15, g:117, s:"1 medium serving"},
+    {n:"Broccoli, cooked", a:["broccoli"], c:35, p:2.4, cb:7.2, f:0.4, g:91, s:"1 cup"},
+    {n:"Spinach, raw", a:["spinach"], c:23, p:2.9, cb:3.6, f:0.4, g:30, s:"1 cup"},
+    {n:"Kale, raw", a:["kale"], c:49, p:4.3, cb:8.8, f:0.9, g:67, s:"1 cup"},
+    {n:"Carrot", c:41, p:0.9, cb:9.6, f:0.2, g:61, s:"1 medium"},
+    {n:"Tomato", c:18, p:0.9, cb:3.9, f:0.2, g:123, s:"1 medium"},
+    {n:"Cucumber", c:15, p:0.7, cb:3.6, f:0.1, g:120, s:"1/2 cucumber"},
+    {n:"Bell pepper", c:31, p:1, cb:6, f:0.3, g:119, s:"1 medium"},
+    {n:"Onion", c:40, p:1.1, cb:9.3, f:0.1, g:110, s:"1 medium"},
+    {n:"Mushroom", c:22, p:3.1, cb:3.3, f:0.3, g:70, s:"1 cup sliced"},
+    {n:"Corn", c:96, p:3.4, cb:21, f:1.5, g:154, s:"1 cup"},
+    {n:"Peas", c:81, p:5.4, cb:14, f:0.4, g:160, s:"1 cup"},
+    {n:"Zucchini", c:17, p:1.2, cb:3.1, f:0.3, g:124, s:"1 cup sliced"},
+    {n:"Cauliflower", c:25, p:1.9, cb:5, f:0.3, g:100, s:"1 cup"},
+    {n:"Edamame", c:122, p:11, cb:10, f:5, g:155, s:"1 cup"},
+    {n:"Mixed green salad, no dressing", a:["salad"], c:15, p:1.4, cb:2.9, f:0.2, g:85, s:"1 bowl"},
+    {n:"Avocado", c:160, p:2, cb:8.5, f:14.7, g:150, s:"1 medium"},
+    {n:"Banana", c:89, p:1.1, cb:23, f:0.3, g:118, s:"1 medium"},
+    {n:"Apple", c:52, p:0.3, cb:14, f:0.2, g:182, s:"1 medium"},
+    {n:"Orange", c:47, p:0.9, cb:12, f:0.1, g:131, s:"1 medium"},
+    {n:"Strawberries", c:32, p:0.7, cb:7.7, f:0.3, g:152, s:"1 cup"},
+    {n:"Blueberries", c:57, p:0.7, cb:14.5, f:0.3, g:148, s:"1 cup"},
+    {n:"Grapes", c:69, p:0.7, cb:18, f:0.2, g:151, s:"1 cup"},
+    {n:"Watermelon", c:30, p:0.6, cb:7.6, f:0.2, g:152, s:"1 cup"},
+    {n:"Pineapple", c:50, p:0.5, cb:13, f:0.1, g:165, s:"1 cup"},
+    {n:"Mango", c:60, p:0.8, cb:15, f:0.4, g:165, s:"1 cup"},
+    {n:"Peach", c:39, p:0.9, cb:9.5, f:0.3, g:150, s:"1 medium"},
+    {n:"Cherries", c:63, p:1.1, cb:16, f:0.2, g:138, s:"1 cup"},
+    {n:"Almonds", c:579, p:21, cb:22, f:50, g:28, s:"1 oz (~23 nuts)"},
+    {n:"Walnuts", c:654, p:15, cb:14, f:65, g:28, s:"1 oz"},
+    {n:"Peanut butter", c:588, p:25, cb:20, f:50, g:32, s:"2 tbsp"},
+    {n:"Hummus", c:166, p:7.9, cb:14.3, f:9.6, g:60, s:"1/4 cup"},
+    {n:"Cheddar cheese", a:["cheese"], c:403, p:25, cb:1.3, f:33, g:28, s:"1 slice"},
+    {n:"Mozzarella cheese", c:280, p:28, cb:2.2, f:17, g:28, s:"1 oz"},
+    {n:"Cottage cheese", c:98, p:11, cb:3.4, f:4.3, g:113, s:"1/2 cup"},
+    {n:"String cheese", c:302, p:24, cb:2.3, f:22, g:28, s:"1 stick"},
+    {n:"Greek yogurt, plain", a:["greek yogurt"], c:59, p:10, cb:3.6, f:0.4, g:170, s:"1 container"},
+    {n:"Yogurt, vanilla", c:100, p:4, cb:17, f:1.5, g:170, s:"1 container"},
+    {n:"Milk, whole", a:["milk"], c:61, p:3.2, cb:4.8, f:3.3, g:244, s:"1 cup"},
+    {n:"Almond milk, unsweetened", c:13, p:0.5, cb:0.6, f:1.1, g:240, s:"1 cup"},
+    {n:"Butter", c:717, p:0.9, cb:0.1, f:81, g:14, s:"1 tbsp"},
+    {n:"Olive oil", c:884, p:0, cb:0, f:100, g:14, s:"1 tbsp"},
+    {n:"Black beans, cooked", c:132, p:8.9, cb:24, f:0.5, g:172, s:"1 cup"},
+    {n:"Chickpeas, cooked", c:164, p:8.9, cb:27, f:2.6, g:164, s:"1 cup"},
+    {n:"Lentils, cooked", c:116, p:9, cb:20, f:0.4, g:198, s:"1 cup"},
+    {n:"Pizza slice, cheese", a:["pizza"], c:266, p:11, cb:33, f:10, g:107, s:"1 slice"},
+    {n:"Hamburger, with bun", c:295, p:17, cb:24, f:14, g:150, s:"1 burger"},
+    {n:"Hot dog", c:290, p:10, cb:2, f:26, g:98, s:"1 hot dog, with bun"},
+    {n:"California roll (sushi)", a:["sushi"], c:145, p:5.8, cb:22, f:4.1, g:100, s:"6 pieces"},
+    {n:"Chicken noodle soup", c:38, p:2.6, cb:4.6, f:1, g:248, s:"1 cup"},
+    {n:"Cereal, plain", c:379, p:7, cb:83, f:2, g:40, s:"1 cup"},
+    {n:"Pancake", c:227, p:6, cb:28, f:10, g:77, s:"1 pancake"},
+    {n:"Waffle", c:291, p:7.9, cb:33, f:14.5, g:75, s:"1 waffle"},
+    {n:"Croissant", c:406, p:8.2, cb:45.8, f:21, g:57, s:"1 croissant"},
+    {n:"Protein shake", c:103, p:17, cb:5, f:1.8, g:250, s:"1 scoop w/ water"},
+    {n:"Coffee, black", a:["coffee"], c:1, p:0.1, cb:0, f:0, g:237, s:"1 cup"},
+    {n:"Latte, whole milk", a:["latte"], c:61, p:3.2, cb:4.8, f:3.3, g:240, s:"1 cup"},
+    {n:"Orange juice", c:45, p:0.7, cb:10.4, f:0.2, g:248, s:"1 cup"},
+    {n:"Soda", a:["cola"], c:41, p:0, cb:10.6, f:0, g:355, s:"1 can"},
+    {n:"Beer", c:43, p:0.5, cb:3.6, f:0, g:355, s:"1 can"},
+    {n:"Wine, red", c:85, p:0.1, cb:2.6, f:0, g:147, s:"1 glass"},
+    {n:"Dark chocolate", c:598, p:7.8, cb:45.8, f:43, g:28, s:"1 oz"},
+    {n:"Potato chips", c:536, p:6.6, cb:53, f:34, g:28, s:"1 oz (~15 chips)"},
+    {n:"Popcorn, air-popped", c:387, p:12.9, cb:78, f:4.5, g:28, s:"3 cups"},
+    {n:"Granola bar", c:471, p:10, cb:64, f:20, g:40, s:"1 bar"},
+    {n:"Ice cream", c:207, p:3.5, cb:24, f:11, g:66, s:"1/2 cup"},
+    {n:"Cookie", c:488, p:5.9, cb:64, f:24, g:16, s:"1 cookie"},
+    {n:"Donut", c:452, p:4.9, cb:51, f:25, g:60, s:"1 donut"},
+
+    // ---- Indian ----
+    {n:"Butter chicken", a:["murgh makhani"], c:140, p:10, cb:5, f:9, g:250, s:"1 bowl"},
+    {n:"Chicken tikka masala", c:150, p:12, cb:6, f:9, g:250, s:"1 bowl"},
+    {n:"Chicken curry", c:160, p:13, cb:5, f:10, g:250, s:"1 bowl"},
+    {n:"Mutton curry", a:["lamb curry","goat curry"], c:200, p:15, cb:4, f:14, g:200, s:"1 bowl"},
+    {n:"Egg curry", c:150, p:9, cb:5, f:10, g:200, s:"1 bowl (2 eggs)"},
+    {n:"Fish curry", c:130, p:14, cb:4, f:7, g:200, s:"1 bowl"},
+    {n:"Chicken korma", a:["korma"], c:180, p:12, cb:6, f:12, g:250, s:"1 bowl"},
+    {n:"Tandoori chicken", c:150, p:25, cb:2, f:5, g:200, s:"2 pieces"},
+    {n:"Chicken tikka", c:180, p:26, cb:3, f:7, g:150, s:"6 pieces"},
+    {n:"Seekh kebab", c:250, p:18, cb:4, f:18, g:100, s:"2 skewers"},
+    {n:"Paneer tikka", c:280, p:18, cb:6, f:20, g:150, s:"6 pieces"},
+    {n:"Paneer butter masala", a:["paneer makhani"], c:230, p:9, cb:8, f:18, g:200, s:"1 bowl"},
+    {n:"Palak paneer", c:150, p:7, cb:6, f:11, g:200, s:"1 bowl"},
+    {n:"Shahi paneer", c:230, p:9, cb:8, f:18, g:200, s:"1 bowl"},
+    {n:"Malai kofta", c:200, p:5, cb:12, f:15, g:200, s:"1 bowl"},
+    {n:"Chana masala", a:["chole","chholay"], c:164, p:7, cb:20, f:6, g:200, s:"1 bowl"},
+    {n:"Rajma", a:["kidney bean curry"], c:140, p:7, cb:18, f:5, g:200, s:"1 bowl"},
+    {n:"Dal tadka", a:["dal fry","dal","yellow dal"], c:110, p:6, cb:14, f:3.5, g:200, s:"1 bowl"},
+    {n:"Dal makhani", c:170, p:7, cb:15, f:9, g:200, s:"1 bowl"},
+    {n:"Sambar", c:65, p:3, cb:10, f:1.5, g:200, s:"1 bowl"},
+    {n:"Rasam", c:35, p:1.5, cb:6, f:0.8, g:200, s:"1 cup"},
+    {n:"Kadhi", c:90, p:3, cb:8, f:5, g:200, s:"1 bowl"},
+    {n:"Aloo gobi", c:110, p:2.5, cb:14, f:5, g:180, s:"1 bowl"},
+    {n:"Baingan bharta", c:100, p:2, cb:9, f:6.5, g:180, s:"1 bowl"},
+    {n:"Bhindi masala", a:["okra fry"], c:95, p:2, cb:9, f:5.5, g:150, s:"1 bowl"},
+    {n:"Aloo matar", c:105, p:3, cb:14, f:4.5, g:180, s:"1 bowl"},
+    {n:"Mixed vegetable curry", a:["veg curry","sabzi"], c:100, p:2.5, cb:12, f:5, g:180, s:"1 bowl"},
+    {n:"Chicken biryani", c:165, p:8, cb:20, f:6, g:300, s:"1 plate"},
+    {n:"Veg biryani", c:150, p:3.5, cb:22, f:5.5, g:300, s:"1 plate"},
+    {n:"Egg biryani", c:170, p:7, cb:20, f:7, g:300, s:"1 plate"},
+    {n:"Mutton biryani", c:200, p:12, cb:19, f:9, g:300, s:"1 plate"},
+    {n:"Jeera rice", c:160, p:3, cb:30, f:3.5, g:200, s:"1 bowl"},
+    {n:"Curd rice", a:["dahi rice"], c:120, p:3, cb:18, f:3.5, g:200, s:"1 bowl"},
+    {n:"Khichdi", c:120, p:4, cb:20, f:2.5, g:250, s:"1 bowl"},
+    {n:"Pulao", a:["pilaf"], c:155, p:3.5, cb:26, f:4, g:200, s:"1 bowl"},
+    {n:"Roti", a:["chapati","phulka"], c:297, p:11, cb:46, f:7.4, g:40, s:"1 medium roti"},
+    {n:"Naan", c:310, p:9, cb:50, f:8, g:90, s:"1 piece"},
+    {n:"Butter naan", c:340, p:9, cb:49, f:12, g:90, s:"1 piece"},
+    {n:"Paratha, plain", a:["paratha"], c:340, p:6, cb:45, f:15, g:70, s:"1 piece"},
+    {n:"Aloo paratha", c:260, p:5, cb:34, f:11, g:100, s:"1 piece"},
+    {n:"Puri", c:380, p:6, cb:40, f:21, g:25, s:"1 puri"},
+    {n:"Papad, roasted", a:["papadum"], c:320, p:20, cb:55, f:2, g:10, s:"1 papad"},
+    {n:"Idli", c:130, p:4, cb:26, f:0.5, g:40, s:"1 idli"},
+    {n:"Dosa, plain", a:["dosa"], c:168, p:3.9, cb:28, f:4.5, g:80, s:"1 dosa"},
+    {n:"Masala dosa", c:190, p:4, cb:28, f:7, g:150, s:"1 dosa"},
+    {n:"Uttapam", c:150, p:4, cb:26, f:3.5, g:100, s:"1 uttapam"},
+    {n:"Medu vada", a:["vada"], c:330, p:10, cb:30, f:19, g:40, s:"1 vada"},
+    {n:"Upma", c:130, p:3, cb:20, f:4.5, g:200, s:"1 bowl"},
+    {n:"Poha", c:130, p:2.5, cb:24, f:3, g:200, s:"1 bowl"},
+    {n:"Dhokla", c:160, p:6, cb:22, f:5, g:100, s:"4 pieces"},
+    {n:"Samosa", c:308, p:5, cb:32, f:18, g:60, s:"1 samosa"},
+    {n:"Pakora", a:["bhaji","onion bhaji"], c:315, p:6, cb:28, f:20, g:60, s:"1 serving (4-5 pieces)"},
+    {n:"Pav bhaji", c:150, p:4, cb:18, f:7, g:250, s:"1 plate (with pav)"},
+    {n:"Chole bhature", c:280, p:7, cb:32, f:13, g:300, s:"1 plate"},
+    {n:"Vada pav", c:280, p:6, cb:38, f:11, g:100, s:"1 vada pav"},
+    {n:"Pani puri", a:["golgappa","puchka"], c:250, p:5, cb:45, f:6, g:100, s:"6 pieces"},
+    {n:"Curd", a:["dahi","plain curd"], c:60, p:3.5, cb:4.7, f:3.3, g:100, s:"1 small bowl"},
+    {n:"Lassi, sweet", c:85, p:2.5, cb:12, f:2.7, g:250, s:"1 glass"},
+    {n:"Masala chai", a:["chai","indian tea"], c:55, p:1.5, cb:8, f:1.8, g:150, s:"1 cup"},
+    {n:"Gulab jamun", c:380, p:4, cb:52, f:17, g:40, s:"1 piece"},
+    {n:"Jalebi", c:390, p:2, cb:60, f:15, g:30, s:"2 pieces"},
+    {n:"Rasgulla", c:186, p:4, cb:36, f:3, g:40, s:"1 piece"},
+    {n:"Kheer", a:["rice pudding"], c:130, p:3, cb:19, f:4, g:150, s:"1 bowl"},
+    {n:"Chicken 65", c:280, p:20, cb:10, f:18, g:150, s:"1 plate"},
+    {n:"Keema matar", a:["mince curry"], c:210, p:15, cb:7, f:14, g:200, s:"1 bowl"},
+    {n:"Misal pav", c:180, p:7, cb:20, f:8, g:250, s:"1 plate"},
+    {n:"Litti chokha", c:250, p:7, cb:35, f:9, g:200, s:"2 pieces with chokha"},
+    {n:"Thepla", c:280, p:7, cb:38, f:11, g:40, s:"1 piece"},
+    {n:"Handvo", c:230, p:6, cb:28, f:10, g:100, s:"1 slice"},
+    {n:"Kathi roll, chicken", a:["chicken roll"], c:220, p:12, cb:22, f:9, g:150, s:"1 roll"},
+    {n:"Paneer roll", c:230, p:9, cb:24, f:11, g:150, s:"1 roll"},
+    {n:"Bisi bele bath", c:140, p:4, cb:22, f:4, g:250, s:"1 bowl"},
+    {n:"Puliyogare", a:["tamarind rice"], c:170, p:3, cb:28, f:5, g:200, s:"1 bowl"},
+    {n:"Appam", c:150, p:3, cb:28, f:3, g:60, s:"1 appam"},
+    {n:"Malabar parotta", a:["kerala parotta"], c:320, p:6, cb:42, f:14, g:80, s:"1 piece"},
+    {n:"Rava idli", c:170, p:4, cb:28, f:4.5, g:60, s:"2 pieces"},
+    {n:"Onion uttapam", c:155, p:4, cb:26, f:3.8, g:100, s:"1 uttapam"},
+
+    // ---- more worldwide ----
+    {n:"Beef taco", a:["taco"], c:210, p:11, cb:16, f:11, g:80, s:"1 taco"},
+    {n:"Chicken burrito", a:["burrito"], c:190, p:9, cb:23, f:7, g:300, s:"1 burrito"},
+    {n:"Guacamole", c:150, p:2, cb:9, f:13, g:60, s:"1/4 cup"},
+    {n:"Falafel", c:333, p:13, cb:32, f:18, g:80, s:"4 balls"},
+    {n:"Hummus with pita", a:["shawarma"], c:250, p:9, cb:24, f:13, g:200, s:"1 wrap"},
+    {n:"Fried rice", c:163, p:4, cb:24, f:6, g:200, s:"1 cup"},
+    {n:"Chow mein", c:145, p:5, cb:20, f:5, g:200, s:"1 cup"},
+    {n:"Kung pao chicken", c:180, p:14, cb:8, f:10, g:250, s:"1 bowl"},
+    {n:"Pad thai", c:180, p:7, cb:24, f:6, g:250, s:"1 plate"},
+    {n:"Green curry", a:["thai curry"], c:130, p:6, cb:6, f:9, g:250, s:"1 bowl"},
+    {n:"Ramen", c:436, p:18, cb:65, f:14, g:400, s:"1 bowl"},
+    {n:"Shakshuka", c:120, p:7, cb:7, f:7, g:250, s:"1 bowl"},
+    {n:"Greek salad", c:75, p:2, cb:4, f:6, g:200, s:"1 bowl"},
+  ];
+  const UNIT_LABELS = {native:"", g:"grams (g)", oz:"ounces (oz)", bowl_small:"Small bowl", bowl_medium:"Medium bowl", bowl_large:"Large bowl", plate_small:"Small plate", plate_large:"Large plate"};
+  const UNIT_GRAMS = {g:1, oz:28.3495, bowl_small:250, bowl_medium:400, bowl_large:600, plate_small:300, plate_large:500};
+  function gramsFor(qty, unit, nativeUnitGrams){
+    if (unit === 'native') return qty * (nativeUnitGrams || 100);
+    return qty * (UNIT_GRAMS[unit] || 1);
+  }
+  function findDictMatches(query){
+    const q = query.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const pool = customFoods.map(f=>({n:f.n, a:[], c:f.c, p:f.p, cb:f.cb, f:f.f, g:f.g, s:f.s, custom:true})).concat(FOOD_DICT);
+    const scored = [];
+    pool.forEach(item=>{
+      const names = [item.n.toLowerCase(), ...(item.a||[]).map(x=>x.toLowerCase())];
+      let best = -1;
+      names.forEach(nm=>{
+        if (nm === q) best = Math.max(best, 3);
+        else if (nm.startsWith(q)) best = Math.max(best, 2);
+        else if (nm.includes(q)) best = Math.max(best, 1);
+      });
+      if (best > 0) scored.push({item, score: best + (item.custom?0.5:0)});
+    });
+    scored.sort((a,b)=>b.score-a.score);
+    return scored.slice(0,6).map(s=>s.item);
+  }
+
+  // ---------- capabilities ----------
+  let db = null, sample = null, imagesOk = false;
+
+  // ---------- state ----------
+  let profile = { calorieGoal: 2200, proteinGoal: 150, carbGoal: 275, fatGoal: 85 };
+  let entries = []; // today's entries {id, meal, name, calories, protein, carbs, fat, loggedAt}
+  let allEntriesCache = []; // for reports (last ~50)
+  let customFoods = []; // user-added foods {id, n, c, p, cb, f, g, s} merged into autocomplete
+  let currentView = 'home';
+  let localMode = false; // true if db unavailable -> use localStorage
+
+  // ---------- local fallback storage ----------
+  function lsGet(key, fallback){ try { const v = JSON.parse(localStorage.getItem(key)); return v==null?fallback:v; } catch(e){ return fallback; } }
+  function lsSet(key, val){ try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){} }
+
+  // ============ INIT ============
+  async function init(){
+    try { db = await claude.use('db'); } catch(e){ db = null; }
+    try { sample = await claude.use('sample'); } catch(e){ sample = null; }
+
+    if (sample) {
+      try {
+        const lim = await sample.limits();
+        imagesOk = !!lim.images;
+      } catch(e) { imagesOk = false; }
+    }
+
+    if (!db) {
+      localMode = true;
+      profile = lsGet('cs_profile', profile);
+      allEntriesCache = lsGet('cs_entries', []);
+      customFoods = lsGet('cs_customFoods', []);
+      refreshTodayFromCache();
+      renderAll();
+    } else {
+      // profile
+      try {
+        const snap = await db.doc('profile/main').get();
+        if (snap.exists) profile = Object.assign(profile, snap.data());
+      } catch(e){}
+      renderAll();
+      subscribeEntries();
+      subscribeCustomFoods();
+    }
+
+    setGreeting();
+    document.getElementById('dateText').textContent = new Date().toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'});
+    bindNav();
+    bindAddFood();
+    bindProfile();
+    renderAll();
+  }
+
+  function setGreeting(){
+    const h = new Date().getHours();
+    document.getElementById('greetText').textContent = h<12?'Good morning':(h<17?'Good afternoon':'Good evening');
+  }
+
+  function defaultMealForNow(){
+    const h = new Date().getHours();
+    if (h < 11) return 'Breakfast';
+    if (h < 15) return 'Lunch';
+    if (h < 21) return 'Dinner';
+    return 'Snack';
+  }
+
+  // ============ DB / entries ============
+  function subscribeEntries(){
+    const today = todayStr();
+    try {
+      db.collection('entries').where('date','==',today).orderBy('loggedAt','asc').onSnapshot(
+        (qs)=>{
+          entries = qs.docs.map(d=>Object.assign({id:d.id}, d.data()));
+          renderHome(); renderLog();
+        },
+        (err)=>{ console.warn('entries sub error', err); }
+      );
+    } catch(e){ console.warn(e); }
+    // last 7 days for reports (best-effort, no compound index needed: fetch a bounded recent window)
+    try {
+      db.collection('entries').orderBy('loggedAt','desc').limit(300).onSnapshot(
+        (qs)=>{ allEntriesCache = qs.docs.map(d=>Object.assign({id:d.id}, d.data())); renderReports(); },
+        (err)=>{}
+      );
+    } catch(e){}
+  }
+
+  function refreshTodayFromCache(){
+    const today = todayStr();
+    entries = allEntriesCache.filter(e=>e.date===today).sort((a,b)=>(a.loggedAt||'').localeCompare(b.loggedAt||''));
+  }
+
+  // ============ DB / custom foods (user's own "any dish" library) ============
+  function subscribeCustomFoods(){
+    try {
+      db.collection('customFoods').orderBy('n','asc').onSnapshot(
+        (qs)=>{ customFoods = qs.docs.map(d=>Object.assign({id:d.id}, d.data())); renderProfileLibrary(); },
+        (err)=>{}
+      );
+    } catch(e){}
+  }
+
+  async function addCustomFood(food){
+    if (localMode) {
+      food.id = 'cf'+Date.now()+Math.random().toString(36).slice(2,6);
+      customFoods.push(food);
+      lsSet('cs_customFoods', customFoods);
+      renderProfileLibrary();
+    } else {
+      try { await db.collection('customFoods').add(food); }
+      catch(e){ toast('Could not save to your library'); return false; }
+    }
+    return true;
+  }
+
+  async function deleteCustomFood(id){
+    if (localMode) {
+      customFoods = customFoods.filter(f=>f.id!==id);
+      lsSet('cs_customFoods', customFoods);
+      renderProfileLibrary();
+    } else {
+      try { await db.doc('customFoods/'+id).delete(); } catch(e){ toast('Could not delete'); }
+    }
+  }
+
+  async function addEntryToLog(entry){
+    entry.date = todayStr();
+    entry.loggedAt = new Date().toISOString();
+    if (localMode) {
+      entry.id = 'e'+Date.now()+Math.random().toString(36).slice(2,7);
+      allEntriesCache.unshift(entry);
+      lsSet('cs_entries', allEntriesCache);
+      refreshTodayFromCache();
+      renderHome(); renderLog(); renderReports();
+    } else {
+      try { await db.collection('entries').add(entry); }
+      catch(e){ toast('Could not save entry — try again'); return false; }
+    }
+    return true;
+  }
+
+  async function deleteEntry(id){
+    if (localMode) {
+      allEntriesCache = allEntriesCache.filter(e=>e.id!==id);
+      lsSet('cs_entries', allEntriesCache);
+      refreshTodayFromCache();
+      renderHome(); renderLog(); renderReports();
+    } else {
+      try { await db.doc('entries/'+id).delete(); } catch(e){ toast('Could not delete'); }
+    }
+  }
+
+  async function saveProfile(){
+    if (localMode) { lsSet('cs_profile', profile); }
+    else { try { await db.doc('profile/main').set(profile); } catch(e){ toast('Could not save goals'); return; } }
+    toast('Goals saved');
+    renderHome();
+  }
+
+  async function clearAllData(){
+    if (localMode) {
+      allEntriesCache = []; lsSet('cs_entries', []); refreshTodayFromCache();
+      renderHome(); renderLog(); renderReports();
+      toast('Data cleared');
+      return;
+    }
+    try {
+      const qs = await db.collection('entries').limit(500).get();
+      for (const d of qs.docs) { await d.ref ? d.ref.delete() : db.doc('entries/'+d.id).delete(); }
+      toast('Data cleared');
+    } catch(e){ toast('Could not clear data'); }
+  }
+
+  // ============ NAV ============
+  function bindNav(){
+    document.querySelectorAll('.tab[data-view]').forEach(btn=>{
+      btn.addEventListener('click', ()=> switchView(btn.dataset.view));
+    });
+    document.getElementById('fabAdd').addEventListener('click', openAddSheet);
+  }
+  function switchView(v){
+    currentView = v;
+    document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+    document.getElementById('view-'+v).classList.add('active');
+    document.querySelectorAll('.tab[data-view]').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+    window.scrollTo(0,0);
+  }
+
+  // ============ RENDER ============
+  function computeTotals(){
+    return entries.reduce((acc,e)=>{
+      acc.cal += Number(e.calories)||0;
+      acc.protein += Number(e.protein)||0;
+      acc.carbs += Number(e.carbs)||0;
+      acc.fat += Number(e.fat)||0;
+      return acc;
+    }, {cal:0, protein:0, carbs:0, fat:0});
+  }
+
+  function renderAll(){ renderHome(); renderLog(); renderReports(); renderProfileForm(); }
+
+  function renderHome(){
+    const t = computeTotals();
+    const remaining = Math.max(0, r0(profile.calorieGoal - t.cal));
+    document.getElementById('calsRemaining').textContent = remaining.toLocaleString();
+    document.getElementById('calsConsumed').textContent = r0(t.cal).toLocaleString();
+    document.getElementById('calsGoal').textContent = r0(profile.calorieGoal).toLocaleString();
+    const circumference = 2*Math.PI*56;
+    const pct = Math.max(0, Math.min(1, profile.calorieGoal ? t.cal/profile.calorieGoal : 0));
+    document.getElementById('ringVal').setAttribute('stroke-dasharray', `${circumference*pct} ${circumference}`);
+
+    setMacro('protein', t.protein, profile.proteinGoal);
+    setMacro('carbs', t.carbs, profile.carbGoal);
+    setMacro('fat', t.fat, profile.fatGoal);
+
+    const meals = ['Breakfast','Lunch','Dinner','Snack'];
+    const byMeal = {}; meals.forEach(m=>byMeal[m]=0);
+    entries.forEach(e=>{ byMeal[e.meal] = (byMeal[e.meal]||0) + (Number(e.calories)||0); });
+    document.getElementById('mealsCard').innerHTML = meals.map(m=>`
+      <div class="meal-row"><span class="m-name">${m}</span><span class="m-cal">${byMeal[m] ? r0(byMeal[m])+' cal' : '—'}</span></div>
+    `).join('');
+  }
+  function setMacro(key, val, goal){
+    const el = document.getElementById(key+'Val');
+    el.textContent = `${r0(val)}/${r0(goal)||0}g`;
+    const pct = goal ? Math.min(100, (val/goal)*100) : 0;
+    document.getElementById(key+'Bar').style.width = pct+'%';
+  }
+
+  function renderLog(){
+    const el = document.getElementById('logCard');
+    if (!entries.length) { el.innerHTML = `<p class="empty-hint">Nothing logged yet today. Tap + to snap your first meal.</p>`; return; }
+    const meals = ['Breakfast','Lunch','Dinner','Snack'];
+    let html = '';
+    meals.forEach(m=>{
+      const items = entries.filter(e=>e.meal===m);
+      if (!items.length) return;
+      html += `<div class="log-group-title">${m}</div>`;
+      items.forEach(e=>{
+        html += `<div class="log-item">
+          <div class="li-main">
+            <div class="li-name">${esc(e.name)}</div>
+            <div class="li-sub">${esc(e.amountLabel||'')}</div>
+          </div>
+          <div class="li-cal">${r0(e.calories)} cal</div>
+          <button class="li-del" data-del="${e.id}">✕</button>
+        </div>`;
+      });
+    });
+    el.innerHTML = html;
+    el.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.addEventListener('click', ()=> deleteEntry(btn.dataset.del));
+    });
+  }
+
+  function renderReports(){
+    const days = [];
+    for (let i=6;i>=0;i--) days.push(dateStrDaysAgo(i));
+    const totals = days.map(d => allEntriesCache.filter(e=>e.date===d).reduce((s,e)=>s+(Number(e.calories)||0),0));
+    const max = Math.max(profile.calorieGoal||0, ...totals, 1);
+    const bars = document.getElementById('bars7');
+    bars.innerHTML = days.map((d,i)=>{
+      const dt = new Date(d+'T00:00:00');
+      const label = dt.toLocaleDateString(undefined,{weekday:'short'})[0];
+      const h = Math.max(3, Math.round((totals[i]/max)*120));
+      return `<div class="bar7-col"><div class="bar7-fill" style="height:${h}px"></div><div class="bar7-day">${label}</div></div>`;
+    }).join('');
+    const withData = totals.filter(t=>t>0);
+    const avg = withData.length ? Math.round(withData.reduce((a,b)=>a+b,0)/withData.length) : 0;
+    document.getElementById('reportStats').innerHTML = `
+      <div class="stat-row"><span>Average daily calories</span><span>${avg ? avg.toLocaleString() : '—'}</span></div>
+      <div class="stat-row"><span>Days logged this week</span><span>${withData.length}/7</span></div>
+      <div class="stat-row"><span>Daily goal</span><span>${r0(profile.calorieGoal).toLocaleString()}</span></div>
+    `;
+  }
+
+  function renderProfileForm(){
+    document.getElementById('goalCalories').value = profile.calorieGoal;
+    document.getElementById('goalProtein').value = profile.proteinGoal;
+    document.getElementById('goalCarbs').value = profile.carbGoal;
+    document.getElementById('goalFat').value = profile.fatGoal;
+    renderProfileLibrary();
+  }
+
+  function renderProfileLibrary(){
+    const el = document.getElementById('libraryList');
+    if (!el) return;
+    if (!customFoods.length) { el.innerHTML = `<p class="lib-empty">No foods added yet — anything you save shows up here.</p>`; return; }
+    el.innerHTML = customFoods.map(f=>`
+      <div class="lib-item">
+        <div class="li-main">
+          <div class="li-name">${esc(f.n)}</div>
+          <div class="li-sub">${r0(f.c)} cal / 100g · ${esc(f.s||'')}</div>
+        </div>
+        <button class="li-del" data-libdel="${f.id}">✕</button>
+      </div>
+    `).join('');
+    el.querySelectorAll('[data-libdel]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ if (confirm('Remove this food from your library?')) deleteCustomFood(btn.dataset.libdel); });
+    });
+  }
+
+  // ---- BMI / calorie target calculator ----
+  const BMI_CATS = [[18.5,'Underweight'],[25,'Normal weight'],[30,'Overweight'],[Infinity,'Obesity range']];
+  function bmiCategory(bmi){ for (const [max,label] of BMI_CATS) if (bmi < max) return label; return 'Obesity range'; }
+
+  function bindBmiCalculator(){
+    document.getElementById('bmiCalcBtn').addEventListener('click', ()=>{
+      const age = Number(document.getElementById('bmiAge').value);
+      const sex = document.getElementById('bmiSex').value;
+      const units = document.getElementById('bmiUnits').value;
+      const hRaw = Number(document.getElementById('bmiHeight').value);
+      const wRaw = Number(document.getElementById('bmiWeight').value);
+      const activity = Number(document.getElementById('bmiActivity').value);
+      if (!age || !hRaw || !wRaw) { toast('Fill in age, height and weight'); return; }
+
+      const heightCm = units==='imperial' ? hRaw*2.54 : hRaw;
+      const weightKg = units==='imperial' ? wRaw*0.453592 : wRaw;
+      const bmi = weightKg / Math.pow(heightCm/100, 2);
+      const bmr = sex==='male'
+        ? 10*weightKg + 6.25*heightCm - 5*age + 5
+        : 10*weightKg + 6.25*heightCm - 5*age - 161;
+      const tdee = bmr * activity;
+
+      const lose = Math.max(1200, Math.round((tdee-500)/10)*10);
+      const maintain = Math.round(tdee/10)*10;
+      const gain = Math.round((tdee+400)/10)*10;
+
+      const opt = (label, sub, cal) => {
+        const protein = Math.round(weightKg*1.8);
+        const fat = Math.round(cal*0.25/9);
+        const carbs = Math.max(0, Math.round((cal - protein*4 - fat*9)/4));
+        return {label, sub, cal, protein, carbs, fat};
+      };
+      const options = [
+        opt('Lose weight', '≈0.5kg/week deficit', lose),
+        opt('Maintain weight', 'matches your estimated needs', maintain),
+        opt('Gain weight', 'lean surplus for muscle gain', gain),
+      ];
+
+      document.getElementById('bmiResult').innerHTML = `
+        <div class="bmi-summary"><span class="bmi-num">${bmi.toFixed(1)}</span><span class="bmi-cat">BMI — ${bmiCategory(bmi)}</span></div>
+        <div class="bmi-tdee-note">Estimated maintenance: ~${maintain.toLocaleString()} cal/day. Tap a goal to fill it in below.</div>
+        ${options.map((o,i)=>`
+          <div class="goal-opt" data-opt="${i}">
+            <div><div class="go-name">${o.label}</div><div class="go-sub">${o.sub}</div></div>
+            <div class="go-cal">${o.cal.toLocaleString()} cal</div>
+          </div>
+        `).join('')}
+        <p class="empty-hint" style="margin-top:2px;">Estimates from standard formulas (Mifflin-St Jeor) — not medical advice. A healthy pace is usually 0.25–0.5kg/week.</p>
+      `;
+      document.getElementById('bmiResult').querySelectorAll('[data-opt]').forEach(el=>{
+        el.addEventListener('click', ()=>{
+          const o = options[Number(el.dataset.opt)];
+          document.getElementById('goalCalories').value = o.cal;
+          document.getElementById('goalProtein').value = o.protein;
+          document.getElementById('goalCarbs').value = o.carbs;
+          document.getElementById('goalFat').value = o.fat;
+          toast(`${o.label} target filled in — tap Save goals to apply`);
+          document.getElementById('goalCalories').scrollIntoView({behavior:'smooth', block:'center'});
+        });
+      });
+    });
+  }
+
+  function bindProfile(){
+    document.getElementById('saveGoalsBtn').addEventListener('click', ()=>{
+      profile.calorieGoal = Number(document.getElementById('goalCalories').value)||profile.calorieGoal;
+      profile.proteinGoal = Number(document.getElementById('goalProtein').value)||profile.proteinGoal;
+      profile.carbGoal = Number(document.getElementById('goalCarbs').value)||profile.carbGoal;
+      profile.fatGoal = Number(document.getElementById('goalFat').value)||profile.fatGoal;
+      saveProfile();
+    });
+    document.getElementById('clearDataBtn').addEventListener('click', ()=>{
+      if (confirm('Delete all logged food entries? This cannot be undone.')) clearAllData();
+    });
+    document.getElementById('addLibraryFoodBtn').addEventListener('click', openAddLibraryFoodSheet);
+    bindBmiCalculator();
+  }
+
+  // ---- add a food to the library directly (not logging it) ----
+  function openAddLibraryFoodSheet(){
+    stopBarcodeCamera();
+    sheetBody.innerHTML = `
+      <div class="sheet-title">Add a food to your library</div>
+      <div class="sheet-sub">Works for any dish, anywhere — enter the nutrition per a known weight and it'll be scalable to grams, bowls, or plates from now on.</div>
+      <div class="manual-form">
+        <div class="field"><label>Food name</label><input id="libName" placeholder="e.g. Mom's chicken biryani"></div>
+        <div class="field"><label>Typical serving label</label><input id="libServingLabel" placeholder="e.g. 1 bowl"></div>
+        <div class="field"><label>Weight of that serving (grams)</label><input id="libGrams" type="number" inputmode="numeric" placeholder="e.g. 300"></div>
+        <div class="field"><label>Calories (for that serving)</label><input id="libCal" type="number" inputmode="numeric"></div>
+        <div class="field"><label>Protein (g)</label><input id="libProtein" type="number" inputmode="numeric"></div>
+        <div class="field"><label>Carbs (g)</label><input id="libCarbs" type="number" inputmode="numeric"></div>
+        <div class="field"><label>Fat (g)</label><input id="libFat" type="number" inputmode="numeric"></div>
+      </div>
+      <button class="btn btn-primary" id="libSaveBtn">Save to library</button>
+    `;
+    backdrop.classList.add('open');
+    document.getElementById('libSaveBtn').addEventListener('click', ()=>{
+      const name = document.getElementById('libName').value.trim();
+      const grams = Number(document.getElementById('libGrams').value)||0;
+      const cal = Number(document.getElementById('libCal').value)||0;
+      if (!name || !grams || !cal) { toast('Add a name, weight and calories'); return; }
+      const protein = Number(document.getElementById('libProtein').value)||0;
+      const carbs = Number(document.getElementById('libCarbs').value)||0;
+      const fat = Number(document.getElementById('libFat').value)||0;
+      addCustomFood({
+        n: name,
+        c: round(cal/grams*100), p: round(protein/grams*100), cb: round(carbs/grams*100), f: round(fat/grams*100),
+        g: grams, s: document.getElementById('libServingLabel').value.trim() || `${grams}g serving`,
+      });
+      closeSheet();
+      toast(`${name} added to your library`);
+    });
+  }
+
+  // ============ ADD FOOD SHEET ============
+  const backdrop = document.getElementById('addSheetBackdrop');
+  const sheetBody = document.getElementById('addSheetBody');
+
+  function openAddSheet(){
+    stopBarcodeCamera();
+    renderSheetChoose();
+    backdrop.classList.add('open');
+  }
+  function closeSheet(){ stopBarcodeCamera(); backdrop.classList.remove('open'); }
+  backdrop.addEventListener('click', (e)=>{ if (e.target===backdrop) closeSheet(); });
+
+  function renderSheetChoose(){
+    stopBarcodeCamera();
+    sheetBody.innerHTML = `
+      <div class="sheet-title">Add food</div>
+      <div class="sheet-sub">Snap a photo and Calorivo's AI will estimate the nutrition.</div>
+      <div class="snap-options">
+        <button class="snap-opt" id="optCamera">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8a2 2 0 0 1 2-2h1.2a2 2 0 0 0 1.66-.9l.8-1.2a2 2 0 0 1 1.66-.9h1.36a2 2 0 0 1 1.66.9l.8 1.2A2 2 0 0 0 16.8 6H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z"/><circle cx="12" cy="13" r="3.2"/></svg>
+          <div><div class="so-title">Take photo</div><div class="so-sub">Photograph food or a nutrition label</div></div>
+        </button>
+        <button class="snap-opt" id="optLibrary">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.7"/><path d="M21 16.5 16.5 12l-3 3-3-3L5 18"/></svg>
+          <div><div class="so-title">Choose from photos</div><div class="so-sub">Pick an existing picture</div></div>
+        </button>
+        <button class="snap-opt" id="optBarcode">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5v14M8 5v14M11 5v14M15 5v9M18 5v14M21 5v9"/></svg>
+          <div><div class="so-title">Scan barcode</div><div class="so-sub">AI looks up the product from the code</div></div>
+        </button>
+        <button class="snap-opt" id="optManual">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          <div><div class="so-title">Enter manually</div><div class="so-sub">Start typing — we'll suggest the macros</div></div>
+        </button>
+      </div>
+      ${!imagesOk ? '<p class="empty-hint" style="margin-top:14px;">Photo recognition isn\'t available in this view — you can still log food manually.</p>' : ''}
+    `;
+    document.getElementById('optCamera').addEventListener('click', ()=>{ if(!imagesOk){toast('Photo AI unavailable here');return;} document.getElementById('fileCamera').click(); });
+    document.getElementById('optLibrary').addEventListener('click', ()=>{ if(!imagesOk){toast('Photo AI unavailable here');return;} document.getElementById('fileLibrary').click(); });
+    document.getElementById('optBarcode').addEventListener('click', renderBarcodeScan);
+    document.getElementById('optManual').addEventListener('click', renderQuickAddManual);
+    if (!imagesOk) {
+      document.getElementById('optCamera').style.opacity = .5;
+      document.getElementById('optLibrary').style.opacity = .5;
+    }
+  }
+
+  function bindAddFood(){
+    document.getElementById('fileCamera').addEventListener('change', onFileChosen);
+    document.getElementById('fileLibrary').addEventListener('change', onFileChosen);
+  }
+
+  let pendingImageUrl = null;
+  let aiResult = null; // normalized result object
+
+  function onFileChosen(e){
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    pendingImageUrl = URL.createObjectURL(file);
+    renderAnalyzing();
+    analyzeImage(file);
+  }
+
+  function renderAnalyzing(){
+    sheetBody.innerHTML = `
+      <div class="sheet-title">Analyzing</div>
+      <img class="preview-img" src="${pendingImageUrl}">
+      <div class="analyzing"><div class="spinner"></div><p>Reading your photo…</p></div>
+    `;
+  }
+
+  const VISION_PROMPT = `You are the food-recognition engine inside a calorie tracking app called Calorivo. Look at the attached photo and decide what it shows: (a) a single prepared or unpackaged food item, (b) a printed Nutrition Facts label on packaging, or (c) something unclear, blurry, or not food-related.
+
+Reply with ONLY one JSON object and no other text, matching exactly one of these shapes:
+
+Food photo:
+{"type":"food","name":"Hard-boiled egg","confidence":92,"quantity":1,"unit":"large egg","estimated_grams":50,"calories":78,"protein_g":6.3,"carbs_g":0.6,"fat_g":5.3}
+("estimated_grams" is the total weight in grams of the pictured quantity — your best estimate, used only to let the app convert to other units like grams or ounces.)
+
+Nutrition label:
+{"type":"label","name":"Greek Yogurt","confidence":90,"serving_size":"1 container (170g)","servings_per_container":1,"calories_per_serving":100,"protein_g_per_serving":17,"carbs_g_per_serving":6,"fat_g_per_serving":0}
+
+Unclear / not food:
+{"type":"unknown","confidence":15}
+
+Rules:
+- confidence (0-100) reflects how sure you are about the identification AND the nutrition numbers together. Use high confidence (80+) only when you clearly recognize the food or can clearly read the label. Use moderate (50-79) when reasonably sure but not certain. Use low (<50), or type "unknown", when you can't tell.
+- Never invent precise numbers for food you can't identify — estimate reasonably for common foods based on typical portions, but don't fabricate specifics for unclear images.
+- servings_per_container defaults to 1 if not stated or not legible on the label.
+- All numeric fields are plain numbers (no units, no strings, no ranges).
+- No markdown fences, no commentary — the JSON object only.`;
+
+  async function analyzeImage(file){
+    if (!sample) { sheetBody.innerHTML = errorSheet('Photo recognition isn\'t available right now.', true); return; }
+    try {
+      const data = await sample.json(VISION_PROMPT, { images: [file], modelTier: 'default', cache: false });
+      aiResult = normalizeResult(data);
+      renderResult();
+    } catch (e) {
+      handleSampleError(e);
+    }
+  }
+
+  function normalizeResult(d){
+    if (!d || typeof d !== 'object') return {type:'unknown', confidence:0};
+    if (d.type === 'label') {
+      return {
+        type: 'label',
+        name: d.name || 'Packaged food',
+        confidence: Number(d.confidence)||0,
+        servingSize: d.serving_size || '1 serving',
+        servingsPerContainer: Number(d.servings_per_container) || 1,
+        calPerServing: Number(d.calories_per_serving) || 0,
+        proteinPerServing: Number(d.protein_g_per_serving) || 0,
+        carbsPerServing: Number(d.carbs_g_per_serving) || 0,
+        fatPerServing: Number(d.fat_g_per_serving) || 0,
+        servingsConsumed: 1,
+      };
+    }
+    if (d.type === 'food') {
+      const baseQty = Number(d.quantity) || 1;
+      const baseCal = Number(d.calories) || 0;
+      const estGrams = Number(d.estimated_grams) || (baseCal>0 ? baseCal/1.5 : 100); // rough fallback if AI omits it
+      return {
+        type: 'food',
+        name: d.name || 'Food item',
+        confidence: Number(d.confidence)||0,
+        unit: d.unit || 'serving',
+        baseQty, qty: baseQty,
+        baseCal, baseProtein: Number(d.protein_g)||0, baseCarbs: Number(d.carbs_g)||0, baseFat: Number(d.fat_g)||0,
+        nativeUnitGrams: estGrams / baseQty,
+        cal100: baseCal / estGrams * 100,
+        protein100: (Number(d.protein_g)||0) / estGrams * 100,
+        carbs100: (Number(d.carbs_g)||0) / estGrams * 100,
+        fat100: (Number(d.fat_g)||0) / estGrams * 100,
+      };
+    }
+    return {type:'unknown', confidence: Number(d && d.confidence)||0};
+  }
+
+  function handleSampleError(e){
+    const code = e && e.code;
+    if (code === 'not_granted') { sheetBody.innerHTML = errorSheet('You declined photo analysis, so Calorivo can\'t read this image. You can still log manually.', true); return; }
+    if (code === 'images_unavailable') { sheetBody.innerHTML = errorSheet('This view can\'t send photos to Claude. Try logging manually instead.', true); return; }
+    if (code === 'image_rejected') { sheetBody.innerHTML = errorSheet('That image couldn\'t be read — try a clearer, well-lit photo.', false); return; }
+    if (code === 'rate_limited') { sheetBody.innerHTML = errorSheet('Too many requests right now — wait a moment and try again.', false); return; }
+    if (code === 'refused') { sheetBody.innerHTML = errorSheet('Claude couldn\'t process that photo. Try a different picture.', false); return; }
+    sheetBody.innerHTML = errorSheet('Something went wrong reading that photo. Please try again.', false);
+  }
+
+  function errorSheet(msg, offerManual){
+    return `
+      <div class="sheet-title">We couldn't read that</div>
+      <p class="sheet-sub">${esc(msg)}</p>
+      <div class="btn-row" style="margin-bottom:10px;">
+        <button class="btn btn-ghost" id="errRetake">Retake photo</button>
+        ${offerManual ? '<button class="btn btn-primary" id="errManual">Enter manually</button>' : '<button class="btn btn-primary" id="errClose">Done</button>'}
+      </div>
+    `;
+    }
+
+  // delegate for dynamically created error buttons
+  sheetBody.addEventListener('click', (e)=>{
+    if (e.target.id==='errRetake'){ renderSheetChoose(); }
+    if (e.target.id==='errManual'){ renderManualEntry(); }
+    if (e.target.id==='errClose'){ closeSheet(); }
+  });
+
+  function confidenceBanner(conf, food){
+    if (conf >= 80) return '';
+    if (conf >= 50) {
+      return `<div class="confidence-banner">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+        <div>This looks like <b>${esc(food)}</b> — take a look and adjust if it's not quite right.</div>
+      </div>`;
+    }
+    return `<div class="confidence-banner low">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+      <div>We're not confident about this one. Double-check the details below, or enter it yourself.</div>
+    </div>`;
+  }
+
+  function renderResult(){
+    if (aiResult.type === 'unknown') {
+      sheetBody.innerHTML = `
+        <div class="sheet-title">Couldn't identify this</div>
+        <img class="preview-img" src="${pendingImageUrl}">
+        <p class="sheet-sub">We couldn't confidently identify this food or label.</p>
+        <div class="btn-row" style="margin-bottom:10px;">
+          <button class="btn btn-ghost" id="unkRetake">Retake photo</button>
+          <button class="btn btn-primary" id="unkManual">Enter manually</button>
+        </div>
+      `;
+      document.getElementById('unkRetake').addEventListener('click', renderSheetChoose);
+      document.getElementById('unkManual').addEventListener('click', renderManualEntry);
+      return;
+    }
+
+    if (aiResult.type === 'label') renderLabelResult();
+    else renderFoodResult();
+  }
+
+  // ---- generic quantity/unit control, shared by food-photo results and smart manual entry ----
+  // basis = {cal100, protein100, carbs100, fat100, nativeUnitGrams, nativeUnitLabel}
+  function quantityUnitHTML(basis, qty, unit){
+    const opts = [`<option value="native">${esc(basis.nativeUnitLabel||'serving')}</option>`]
+      .concat(Object.keys(UNIT_LABELS).filter(k=>k!=='native').map(k=>`<option value="${k}">${UNIT_LABELS[k]}</option>`));
+    return `
+      <div class="qu-row">
+        <input type="number" id="quQty" min="0" step="0.5" value="${qty}">
+        <select id="quUnit">${opts.join('')}</select>
+      </div>
+      <div class="grams-note" id="quGramsNote"></div>
+    `;
+  }
+  function bindQuantityUnit(basis, state, onChange){
+    const qtyEl = document.getElementById('quQty');
+    const unitEl = document.getElementById('quUnit');
+    unitEl.value = state.unit;
+    const update = ()=>{
+      state.qty = Math.max(0, Number(qtyEl.value) || 0);
+      state.unit = unitEl.value;
+      const grams = gramsFor(state.qty, state.unit, basis.nativeUnitGrams);
+      document.getElementById('quGramsNote').textContent = state.unit==='native' ? `≈ ${r0(grams)}g` : `${r0(grams)}g total`;
+      onChange(grams);
+    };
+    qtyEl.addEventListener('input', update);
+    unitEl.addEventListener('change', update);
+    update();
+  }
+
+  function renderFoodResult(){
+    const r = aiResult;
+    const basis = { cal100:r.cal100, protein100:r.protein100, carbs100:r.carbs100, fat100:r.fat100, nativeUnitGrams:r.nativeUnitGrams, nativeUnitLabel:r.unit };
+    const quState = { qty: r.baseQty, unit: 'native' };
+    sheetBody.innerHTML = `
+      <div class="sheet-title">Confirm food</div>
+      <img class="preview-img" src="${pendingImageUrl}">
+      ${confidenceBanner(r.confidence, r.name)}
+      <div class="result-name">${esc(r.name)}</div>
+      <div class="estimate-note">Estimated from photo — not an exact measurement.</div>
+
+      ${quantityUnitHTML(basis, quState.qty, quState.unit)}
+
+      <div class="big-cal-wrap"><div class="big-cal" id="resCal">0</div><div class="big-cal-label">calories</div></div>
+      <div class="nutri-grid">
+        <div class="nutri-cell"><div class="n-val" id="resProtein">0g</div><div class="n-label">Protein</div></div>
+        <div class="nutri-cell"><div class="n-val" id="resCarbs">0g</div><div class="n-label">Carbs</div></div>
+        <div class="nutri-cell"><div class="n-val" id="resFat">0g</div><div class="n-label">Fat</div></div>
+      </div>
+
+      <div class="meal-select" id="mealSelect"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="foodEdit">Edit details</button>
+        <button class="btn btn-primary" id="foodAdd">Add to log</button>
+      </div>
+    `;
+    renderMealPills();
+    let current = {cal:0, protein:0, carbs:0, fat:0, grams:0};
+    bindQuantityUnit(basis, quState, (grams)=>{
+      current = { grams, cal: basis.cal100/100*grams, protein: basis.protein100/100*grams, carbs: basis.carbs100/100*grams, fat: basis.fat100/100*grams };
+      document.getElementById('resCal').textContent = r0(current.cal);
+      document.getElementById('resProtein').textContent = round(current.protein)+'g';
+      document.getElementById('resCarbs').textContent = round(current.carbs)+'g';
+      document.getElementById('resFat').textContent = round(current.fat)+'g';
+    });
+    document.getElementById('foodAdd').addEventListener('click', ()=>{
+      const unitLabel = quState.unit === 'native' ? `${quState.qty} ${r.unit}${quState.qty!==1?'s':''}` : `${quState.qty} ${UNIT_LABELS[quState.unit]}`;
+      confirmAdd({
+        name: r.name, amountLabel: unitLabel,
+        calories: round(current.cal), protein: round(current.protein), carbs: round(current.carbs), fat: round(current.fat),
+      });
+    });
+    document.getElementById('foodEdit').addEventListener('click', ()=> renderManualEntry({
+      name: r.name, calories: r0(current.cal), protein: round(current.protein), carbs: round(current.carbs), fat: round(current.fat),
+      amountLabel: quState.unit === 'native' ? `${quState.qty} ${r.unit}${quState.qty!==1?'s':''}` : `${quState.qty} ${UNIT_LABELS[quState.unit]}`
+    }));
+  }
+
+  function renderLabelResult(){
+    const r = aiResult;
+    const cal = r.calPerServing*r.servingsConsumed, protein = r.proteinPerServing*r.servingsConsumed, carbs = r.carbsPerServing*r.servingsConsumed, fat = r.fatPerServing*r.servingsConsumed;
+    sheetBody.innerHTML = `
+      <div class="sheet-title">${r.fromBarcode ? 'Confirm product (from barcode)' : 'Confirm product'}</div>
+      ${pendingImageUrl ? `<img class="preview-img" src="${pendingImageUrl}">` : ''}
+      ${r.fromBarcode ? `<div class="ai-guess-note"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg><div>AI's best guess from the barcode number, not a verified product database. Double-check against the package, or snap the label for exact numbers.</div></div>` : ''}
+      ${confidenceBanner(r.confidence, r.name)}
+      <div class="result-name">${esc(r.name)}</div>
+      <div class="result-amount">Label: ${esc(r.servingSize)} · ${r.servingsPerContainer} serving${r.servingsPerContainer!==1?'s':''} per container</div>
+
+      <div class="stepper">
+        <button id="servMinus">–</button>
+        <div class="qty-val" id="servVal">${r.servingsConsumed} serving${r.servingsConsumed!==1?'s':''}</div>
+        <button id="servPlus">+</button>
+      </div>
+      ${r.servingsPerContainer>1 ? `<button class="btn-text" id="wholeContainer" style="display:block;margin:-8px auto 14px;">Ate the whole container (${r.servingsPerContainer})</button>` : ''}
+
+      <div class="big-cal-wrap"><div class="big-cal" id="resCal">${r0(cal)}</div><div class="big-cal-label">calories</div></div>
+      <div class="nutri-grid">
+        <div class="nutri-cell"><div class="n-val" id="resProtein">${round(protein)}g</div><div class="n-label">Protein</div></div>
+        <div class="nutri-cell"><div class="n-val" id="resCarbs">${round(carbs)}g</div><div class="n-label">Carbs</div></div>
+        <div class="nutri-cell"><div class="n-val" id="resFat">${round(fat)}g</div><div class="n-label">Fat</div></div>
+      </div>
+
+      <div class="meal-select" id="mealSelect"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="labelEdit">Edit details</button>
+        <button class="btn btn-primary" id="labelAdd">Add to log</button>
+      </div>
+    `;
+    renderMealPills();
+    const step = 0.5;
+    document.getElementById('servMinus').addEventListener('click', ()=>{ r.servingsConsumed = Math.max(step, round(r.servingsConsumed-step)); updateLabelNumbers(); });
+    document.getElementById('servPlus').addEventListener('click', ()=>{ r.servingsConsumed = round(r.servingsConsumed+step); updateLabelNumbers(); });
+    const wc = document.getElementById('wholeContainer');
+    if (wc) wc.addEventListener('click', ()=>{ r.servingsConsumed = r.servingsPerContainer; updateLabelNumbers(); });
+    document.getElementById('labelAdd').addEventListener('click', ()=>{
+      confirmAdd({
+        name: r.name,
+        amountLabel: `${r.servingsConsumed} serving${r.servingsConsumed!==1?'s':''} (${r.servingSize})`,
+        calories: round(r.calPerServing*r.servingsConsumed), protein: round(r.proteinPerServing*r.servingsConsumed), carbs: round(r.carbsPerServing*r.servingsConsumed), fat: round(r.fatPerServing*r.servingsConsumed),
+      });
+    });
+    document.getElementById('labelEdit').addEventListener('click', ()=> renderManualEntry({
+      name: r.name, calories: r0(cal), protein: round(protein), carbs: round(carbs), fat: round(fat), amountLabel: `${r.servingsConsumed} serving${r.servingsConsumed!==1?'s':''}`
+    }));
+  }
+
+  function updateLabelNumbers(){
+    const r = aiResult;
+    document.getElementById('servVal').textContent = `${r.servingsConsumed} serving${r.servingsConsumed!==1?'s':''}`;
+    document.getElementById('resCal').textContent = r0(r.calPerServing*r.servingsConsumed);
+    document.getElementById('resProtein').textContent = round(r.proteinPerServing*r.servingsConsumed)+'g';
+    document.getElementById('resCarbs').textContent = round(r.carbsPerServing*r.servingsConsumed)+'g';
+    document.getElementById('resFat').textContent = round(r.fatPerServing*r.servingsConsumed)+'g';
+  }
+
+  let selectedMeal = defaultMealForNow();
+  function renderMealPills(){
+    selectedMeal = defaultMealForNow();
+    const wrap = document.getElementById('mealSelect');
+    const meals = ['Breakfast','Lunch','Dinner','Snack'];
+    wrap.innerHTML = meals.map(m=>`<div class="meal-pill ${m===selectedMeal?'sel':''}" data-meal="${m}">${m}</div>`).join('');
+    wrap.querySelectorAll('.meal-pill').forEach(p=>{
+      p.addEventListener('click', ()=>{ selectedMeal = p.dataset.meal; wrap.querySelectorAll('.meal-pill').forEach(x=>x.classList.toggle('sel', x===p)); });
+    });
+  }
+
+  async function confirmAdd(entry){
+    entry.meal = selectedMeal;
+    const ok = await addEntryToLog(entry);
+    if (ok !== false) {
+      closeSheet();
+      toast(`Added to ${selectedMeal.toLowerCase()} · ${r0(entry.calories)} cal`);
+      switchView('home');
+    }
+  }
+
+  // ---- manual entry ----
+  function renderManualEntry(prefill){
+    prefill = prefill || {};
+    selectedMeal = defaultMealForNow();
+    sheetBody.innerHTML = `
+      <div class="sheet-title">Enter food</div>
+      <div class="manual-form">
+        <div class="field"><label>Food name</label><input id="mName" value="${esc(prefill.name||'')}" placeholder="e.g. Grilled chicken bowl"></div>
+        <div class="field"><label>Amount (optional)</label><input id="mAmount" value="${esc(prefill.amountLabel||'')}" placeholder="e.g. 1 bowl"></div>
+        <div class="field"><label>Calories</label><input id="mCal" type="number" inputmode="numeric" value="${prefill.calories!=null?prefill.calories:''}"></div>
+        <div class="field"><label>Protein (g)</label><input id="mProtein" type="number" inputmode="numeric" value="${prefill.protein!=null?prefill.protein:''}"></div>
+        <div class="field"><label>Carbs (g)</label><input id="mCarbs" type="number" inputmode="numeric" value="${prefill.carbs!=null?prefill.carbs:''}"></div>
+        <div class="field"><label>Fat (g)</label><input id="mFat" type="number" inputmode="numeric" value="${prefill.fat!=null?prefill.fat:''}"></div>
+      </div>
+      <div class="meal-select" id="mealSelect"></div>
+      <button class="btn btn-primary" id="manualAdd">Add to log</button>
+    `;
+    renderMealPills();
+    document.getElementById('manualAdd').addEventListener('click', ()=>{
+      const name = document.getElementById('mName').value.trim();
+      const cal = Number(document.getElementById('mCal').value)||0;
+      if (!name || !cal) { toast('Add a name and calories'); return; }
+      confirmAdd({
+        name,
+        amountLabel: document.getElementById('mAmount').value.trim(),
+        calories: cal,
+        protein: Number(document.getElementById('mProtein').value)||0,
+        carbs: Number(document.getElementById('mCarbs').value)||0,
+        fat: Number(document.getElementById('mFat').value)||0,
+      });
+    });
+  }
+
+  // ---- smart "enter manually" flow: autocomplete + auto-filled macros ----
+  let qaMatch = null;       // {cal100,protein100,carbs100,fat100,nativeUnitGrams,nativeUnitLabel,name,aiEstimated}
+  let qaLookupCtl = null;
+  let qaLookupTimer = null;
+  let qaCurrent = {cal:0, protein:0, carbs:0, fat:0};
+
+  function renderQuickAddManual(){
+    selectedMeal = defaultMealForNow();
+    qaMatch = null;
+    sheetBody.innerHTML = `
+      <div class="sheet-title">Enter food</div>
+      <div class="sheet-sub">Start typing a food — Calorivo will suggest matches and fill in the macros.</div>
+      <div class="field autocomplete-wrap">
+        <label>Food name</label>
+        <input id="qaName" placeholder="e.g. boiled egg" autocomplete="off">
+        <div class="ac-list" id="qaList"></div>
+      </div>
+      <div id="qaBody"></div>
+    `;
+    const nameEl = document.getElementById('qaName');
+    const listEl = document.getElementById('qaList');
+
+    nameEl.addEventListener('input', ()=>{
+      qaMatch = null;
+      renderQaFallbackFields();
+      const q = nameEl.value;
+      clearTimeout(qaLookupTimer);
+      if (qaLookupCtl) qaLookupCtl.abort();
+      const matches = findDictMatches(q);
+      if (matches.length) {
+        listEl.classList.add('open');
+        listEl.innerHTML = matches.map((m,i)=>`<div class="ac-item" data-i="${i}"><span>${esc(m.n)}</span><span class="ac-sub">${r0(m.c)} cal/100g</span></div>`).join('');
+        listEl.querySelectorAll('.ac-item').forEach(el=>{
+          el.addEventListener('click', ()=>{
+            const m = matches[Number(el.dataset.i)];
+            nameEl.value = m.n;
+            listEl.classList.remove('open');
+            applyQaMatch({ cal100:m.c, protein100:m.p, carbs100:m.cb, fat100:m.f, nativeUnitGrams:m.g, nativeUnitLabel:m.s, name:m.n, aiEstimated:false });
+          });
+        });
+      } else {
+        listEl.classList.remove('open');
+        if (q.trim().length >= 3 && sample) {
+          qaLookupTimer = setTimeout(()=> lookupNutritionAI(q.trim()), 550);
+        }
+      }
+    });
+    nameEl.addEventListener('focus', ()=>{ if (listEl.innerHTML) listEl.classList.add('open'); });
+    document.addEventListener('click', (e)=>{ if (!listEl.contains(e.target) && e.target!==nameEl) listEl.classList.remove('open'); }, {once:true});
+
+    renderQaFallbackFields();
+  }
+
+  async function lookupNutritionAI(query){
+    const bodyEl = document.getElementById('qaBody');
+    bodyEl.innerHTML = `<div class="ac-loading">Looking up typical nutrition for "${esc(query)}"…</div>`;
+    qaLookupCtl = new AbortController();
+    const prompt = `You are the nutrition lookup engine inside Calorivo. The user typed the food name "${query}". Reply with ONLY one JSON object with typical nutrition PER 100 GRAMS of this food (as typically prepared/eaten), plus a typical single-serving weight in grams:
+{"name":"proper food name","calories_per_100g":number,"protein_g_per_100g":number,"carbs_g_per_100g":number,"fat_g_per_100g":number,"typical_serving_grams":number,"typical_serving_label":"e.g. 1 medium"}
+If "${query}" is not a recognizable food, reply {"name":null}. Numbers only, no ranges, no commentary, JSON only.`;
+    try {
+      const data = await sample.json(prompt, { modelTier:'quick', cache:{gcTime:600000}, signal: qaLookupCtl.signal });
+      if (!data || !data.name) { renderQaFallbackFields(true); return; }
+      applyQaMatch({
+        cal100: Number(data.calories_per_100g)||0, protein100: Number(data.protein_g_per_100g)||0,
+        carbs100: Number(data.carbs_g_per_100g)||0, fat100: Number(data.fat_g_per_100g)||0,
+        nativeUnitGrams: Number(data.typical_serving_grams)||100, nativeUnitLabel: data.typical_serving_label || '1 serving',
+        name: data.name, aiEstimated: true,
+      });
+    } catch(e) {
+      if (e && e.code === 'cancelled') return;
+      renderQaFallbackFields(true);
+    }
+  }
+
+  function applyQaMatch(match){
+    qaMatch = match;
+    const bodyEl = document.getElementById('qaBody');
+    const basis = { cal100:match.cal100, protein100:match.protein100, carbs100:match.carbs100, fat100:match.fat100, nativeUnitGrams:match.nativeUnitGrams, nativeUnitLabel:match.nativeUnitLabel };
+    const quState = { qty:1, unit:'native' };
+    bodyEl.innerHTML = `
+      <div class="match-tag">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg>
+        ${match.aiEstimated ? 'AI-estimated macros' : 'Matched from food database'}
+      </div>
+      ${quantityUnitHTML(basis, quState.qty, quState.unit)}
+      <div class="big-cal-wrap"><div class="big-cal" id="qaCal">0</div><div class="big-cal-label">calories</div></div>
+      <div class="nutri-grid">
+        <div class="nutri-cell"><div class="n-val" id="qaProtein">0g</div><div class="n-label">Protein</div></div>
+        <div class="nutri-cell"><div class="n-val" id="qaCarbs">0g</div><div class="n-label">Carbs</div></div>
+        <div class="nutri-cell"><div class="n-val" id="qaFat">0g</div><div class="n-label">Fat</div></div>
+      </div>
+      <button class="btn-text" id="qaOverride" style="display:block;margin:-6px 0 10px;">Enter macros manually instead</button>
+      <div class="meal-select" id="mealSelect"></div>
+      <button class="btn btn-primary" id="qaAdd">Add to log</button>
+    `;
+    renderMealPills();
+    bindQuantityUnit(basis, quState, (grams)=>{
+      qaCurrent = { cal: basis.cal100/100*grams, protein: basis.protein100/100*grams, carbs: basis.carbs100/100*grams, fat: basis.fat100/100*grams };
+      document.getElementById('qaCal').textContent = r0(qaCurrent.cal);
+      document.getElementById('qaProtein').textContent = round(qaCurrent.protein)+'g';
+      document.getElementById('qaCarbs').textContent = round(qaCurrent.carbs)+'g';
+      document.getElementById('qaFat').textContent = round(qaCurrent.fat)+'g';
+    });
+    document.getElementById('qaOverride').addEventListener('click', ()=> renderQaFallbackFields());
+    document.getElementById('qaAdd').addEventListener('click', ()=>{
+      const unitLabel = quState.unit === 'native' ? `${quState.qty} ${match.nativeUnitLabel}` : `${quState.qty} ${UNIT_LABELS[quState.unit]}`;
+      confirmAdd({ name: match.name, amountLabel: unitLabel, calories: round(qaCurrent.cal), protein: round(qaCurrent.protein), carbs: round(qaCurrent.carbs), fat: round(qaCurrent.fat) });
+    });
+  }
+
+  function renderQaFallbackFields(notFound){
+    const bodyEl = document.getElementById('qaBody');
+    if (!bodyEl) return;
+    bodyEl.innerHTML = `
+      ${notFound ? '<p class="empty-hint" style="margin:0 0 12px;">Couldn\'t find that food automatically — enter the details below. It\'s a great candidate for your library.</p>' : ''}
+      <div class="manual-form">
+        <div class="field"><label>Amount (optional)</label><input id="mAmount" placeholder="e.g. 1 bowl"></div>
+        <div class="field"><label>Calories</label><input id="mCal" type="number" inputmode="numeric"></div>
+        <div class="field"><label>Protein (g)</label><input id="mProtein" type="number" inputmode="numeric"></div>
+        <div class="field"><label>Carbs (g)</label><input id="mCarbs" type="number" inputmode="numeric"></div>
+        <div class="field"><label>Fat (g)</label><input id="mFat" type="number" inputmode="numeric"></div>
+        <div class="field"><label>Weight of that amount, in grams (optional)</label><input id="mGrams" type="number" inputmode="numeric" placeholder="e.g. 250"></div>
+      </div>
+      <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-soft); margin:-6px 0 16px;">
+        <input type="checkbox" id="mSaveLib" checked style="width:16px;height:16px;"> Remember this in my food library (needs the weight above)
+      </label>
+      <div class="meal-select" id="mealSelect"></div>
+      <button class="btn btn-primary" id="qaManualAdd">Add to log</button>
+    `;
+    renderMealPills();
+    document.getElementById('qaManualAdd').addEventListener('click', ()=>{
+      const name = document.getElementById('qaName').value.trim();
+      const cal = Number(document.getElementById('mCal').value)||0;
+      if (!name || !cal) { toast('Add a name and calories'); return; }
+      const protein = Number(document.getElementById('mProtein').value)||0;
+      const carbs = Number(document.getElementById('mCarbs').value)||0;
+      const fat = Number(document.getElementById('mFat').value)||0;
+      const amountLabel = document.getElementById('mAmount').value.trim();
+      const grams = Number(document.getElementById('mGrams').value)||0;
+      if (grams > 0 && document.getElementById('mSaveLib').checked) {
+        addCustomFood({ n:name, c:round(cal/grams*100), p:round(protein/grams*100), cb:round(carbs/grams*100), f:round(fat/grams*100), g:grams, s: amountLabel || `${grams}g serving` });
+      }
+      confirmAdd({ name, amountLabel, calories: cal, protein, carbs, fat });
+    });
+  }
+
+  // ---- barcode scanning ----
+  let zxingReader = null, barcodeStream = null;
+
+  function renderBarcodeScan(){
+    sheetBody.innerHTML = `
+      <div class="sheet-title">Scan barcode</div>
+      <div class="sheet-sub">Point your camera at the product barcode.</div>
+      <div class="scan-frame"><video id="barcodeVideo" playsinline muted autoplay></video><div class="scan-reticle"></div></div>
+      <div class="scan-status" id="scanStatus">Starting camera…</div>
+      <div class="or-divider">or enter the number</div>
+      <div class="barcode-manual-row">
+        <input id="barcodeManualInput" inputmode="numeric" placeholder="e.g. 041570014477">
+        <button class="btn btn-primary" style="width:auto; padding:12px 20px;" id="barcodeManualGo">Look up</button>
+      </div>
+    `;
+    document.getElementById('barcodeManualGo').addEventListener('click', ()=>{
+      const v = document.getElementById('barcodeManualInput').value.trim();
+      if (!v) { toast('Enter a barcode number'); return; }
+      stopBarcodeCamera();
+      onBarcodeDecoded(v);
+    });
+    startBarcodeCamera();
+  }
+
+  async function startBarcodeCamera(){
+    const statusEl = document.getElementById('scanStatus');
+    if (!window.ZXing || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      if (statusEl) statusEl.textContent = 'Camera scanning isn\'t supported here — enter the number below.';
+      return;
+    }
+    try {
+      zxingReader = new ZXing.BrowserMultiFormatReader();
+      const videoEl = document.getElementById('barcodeVideo');
+      await zxingReader.decodeFromConstraints(
+        { video: { facingMode: 'environment' } },
+        videoEl,
+        (result, err) => {
+          if (result) {
+            stopBarcodeCamera();
+            onBarcodeDecoded(result.getText());
+          }
+        }
+      );
+      if (statusEl) statusEl.textContent = 'Hold the barcode inside the frame';
+    } catch (e) {
+      if (statusEl) statusEl.textContent = 'Couldn\'t access the camera — enter the number below instead.';
+    }
+  }
+
+  function stopBarcodeCamera(){
+    try { if (zxingReader) zxingReader.reset(); } catch(e){}
+    zxingReader = null;
+    const videoEl = document.getElementById('barcodeVideo');
+    if (videoEl && videoEl.srcObject) {
+      videoEl.srcObject.getTracks().forEach(t=>t.stop());
+      videoEl.srcObject = null;
+    }
+  }
+
+  const BARCODE_PROMPT_TMPL = (code) => `You are the barcode lookup engine inside Calorivo, a calorie tracking app. The user scanned a product barcode with the number "${code}". You do NOT have live internet or product-database access — rely only on general knowledge of well-known packaged products and brands. Most individual barcodes cannot be identified this way, and that's expected and fine.
+
+Reply with ONLY one JSON object:
+If you can identify the likely product with reasonable confidence: {"type":"label","name":"...","confidence":number 1-60,"serving_size":"...","servings_per_container":number,"calories_per_serving":number,"protein_g_per_serving":number,"carbs_g_per_serving":number,"fat_g_per_serving":number}
+If you cannot identify it (the common case): {"type":"unknown","confidence":0}
+
+Never exceed confidence 60 — barcode identification without a live product database is inherently uncertain even when you recognize the brand. No commentary, JSON only.`;
+
+  async function onBarcodeDecoded(code){
+    sheetBody.innerHTML = `
+      <div class="sheet-title">Looking up product</div>
+      <div class="analyzing"><div class="spinner"></div><p>Barcode ${esc(code)} — asking AI…</p></div>
+    `;
+    if (!sample) { sheetBody.innerHTML = errorSheet('Product lookup isn\'t available right now. Try scanning the nutrition label instead.', true); return; }
+    try {
+      const data = await sample.json(BARCODE_PROMPT_TMPL(code), { modelTier:'default', cache:false });
+      if (!data || data.type !== 'label') {
+        sheetBody.innerHTML = `
+          <div class="sheet-title">Couldn't identify that product</div>
+          <p class="sheet-sub">Barcode ${esc(code)} doesn't match a product AI recognizes from general knowledge — there's no live product database connected. Snapping the nutrition label directly is the most reliable way to log it.</p>
+          <div class="btn-row">
+            <button class="btn btn-ghost" id="bcRetry">Scan again</button>
+            <button class="btn btn-primary" id="bcLabel">Snap the label instead</button>
+          </div>
+        `;
+        document.getElementById('bcRetry').addEventListener('click', renderBarcodeScan);
+        document.getElementById('bcLabel').addEventListener('click', ()=> document.getElementById('fileCamera').click());
+        return;
+      }
+      aiResult = normalizeResult(data);
+      aiResult.fromBarcode = true;
+      pendingImageUrl = null;
+      renderLabelResult();
+    } catch (e) {
+      handleSampleError(e);
+    }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
